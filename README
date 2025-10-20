@@ -1,7 +1,137 @@
-Hallo alle,
+# 🤖 My Buddy - AI Chatbot Control System
 
-Dit project is de "My Buddy". De Buddy is een AI chatbot dat lokaal op een Raspberry Pi 4B+ zal lopen. Met een database en website in de cloud. 
+> An intelligent AI chatbot system running locally on a Raspberry Pi 4B, managed through a cloud-based web interface with Viam robotics integration.
 
-Deze github repository zal alle bestanden hebben, dit van code op de Raspberry Pi en alle bestanden. Tot de code en bestanden op de cloud server.
+## 📋 Project Overview
 
-Dit project word gemaakt door mij alleen: Wout Deelen in 6DSIC op Gitok Bovenbouw, in de richting Communicatie Wetenschappen als eindejaars STEM-Project. 
+**My Buddy** is a comprehensive end-to-end AI chatbot solution that combines:
+- 🧠 **Local AI Processing** - AI chatbot running on Raspberry Pi 4B (8GB)
+- ☁️ **Cloud Web Dashboard** - Remote control and monitoring interface
+- 🤖 **Viam Integration** - Seamless hardware control and device management
+- 📊 **Real-time Data Monitoring** - Track sensors, actuators, and system metrics
+
+## 🎯 Features
+
+### Web Dashboard
+- **Responsive Design** - Works on desktop and mobile devices
+- **Real-time Data** - Live graphs, sensor readings, and system status
+- **Device Configuration** - Manage sensors, actuators, and LED strips
+- **User Authentication** - Secure login system
+- **Intuitive Navigation** - Collapsible sidebar with organized menus
+
+### Hardware Integration
+- Raspberry Pi 4B (8GB RAM) as the AI processing unit
+- Multiple sensor support (light, humidity, distance)
+- Actuator control (LED strips, motors, etc.)
+- Viam-powered device management and coordination
+
+## 🛠️ Tech Stack
+
+### Frontend
+- **HTML5** - Semantic markup
+- **CSS3** - Modern responsive design with CSS Grid & Flexbox
+- **JavaScript (ES6)** - Interactive UI components
+- **Material Design Icons** - Professional icon system
+
+### Backend
+- **Python 3.13** - Core application language
+- **Flask** - Lightweight web framework for routing and templating
+- **Viam SDK** - Hardware abstraction and control layer
+
+### Hardware
+- **Raspberry Pi 4B** (8GB) - Primary compute and AI inference
+- **Various Sensors** - Light, humidity, distance sensors
+- **Actuators** - LED strips and other output devices
+
+## 📁 Project Structure
+
+```
+My Buddy/
+├── Cloud Server/                 # Web application & API
+│   ├── main.py                  # Flask application entry point
+│   ├── templates/               # HTML templates
+│   │   ├── index.html           # Dashboard home
+│   │   ├── login.html           # Authentication
+│   │   ├── profile.html         # User profile
+│   │   ├── data.html            # Data visualization
+│   │   ├── configure.html       # Device configuration
+│   │   ├── register.html        # User registration
+│   │   └── forgot-password.html # Password recovery
+│   ├── static/                  # Static assets
+│   │   ├── css/style.css        # Main stylesheet
+│   │   ├── app.js               # JavaScript functionality
+│   │   └── picture/             # Image assets
+│   └── dynamic/                 # Legacy JS folder
+├── Raspberry Pi 4B/             # Edge AI & hardware control
+│   └── [AI chatbot & Viam config]
+└── README                       # Project documentation
+```
+
+## 🚀 Getting Started
+
+### Prerequisites
+- Python 3.13+
+- Flask
+- Viam SDK
+- Raspberry Pi 4B with 8GB RAM
+
+### Installation
+
+1. **Clone the repository**
+   ```bash
+   git clone https://github.com/Wootter/My-Buddy.git
+   cd My-Buddy
+   ```
+
+2. **Set up Cloud Server**
+   ```bash
+   cd "Cloud Server"
+   pip install flask viam-sdk
+   python main.py
+   ```
+
+3. **Access the dashboard**
+   - Open `http://localhost:5000` in your browser
+
+### Routes
+- `/` - Home dashboard
+- `/login` - User login
+- `/register` - New user registration
+- `/profile` - User profile
+- `/data` - Data visualization & monitoring
+- `/configure` - Device settings & sensor configuration
+- `/forgot-password` - Password recovery
+
+## 🎮 Features in Detail
+
+### Dashboard
+- View AI chatbot status
+- Real-time sensor data (light, humidity, distance)
+- System metrics and performance stats
+
+### Data Page
+- Interactive graphs and charts
+- Sensor readings and history
+- Actuator status monitoring
+
+### Configuration Page
+- Configure light sensors
+- Humidity sensor settings
+- Distance sensor calibration
+- LED strip customization
+
+## 👨‍💻 Developer
+
+**Wout Deelen**  
+*6DSIC, Gitok Bovenbouw*  
+*Communication Sciences Direction*  
+*STEM End-Year Project*
+
+## 📝 License
+
+This project is part of an educational initiative and serves as a final STEM project.
+
+---
+
+**Status:** 🟢 Active Development  
+**Last Updated:** October 2025 
