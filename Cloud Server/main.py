@@ -8,7 +8,8 @@ Version: 1.0
 Description: This script will be used to service the website.
 '''
 
-from flask import Flask, render_template
+from flask import Flask, render_template, make_response, request, session
+
 app = Flask(__name__)
 
 @app.route('/')
@@ -38,6 +39,21 @@ def register():
 @app.route('/forgot-password')
 def forgot_password():
     return render_template('forgot-password.html')
+
+@app.route("/cookie")
+def cookie():
+    res = make_response("<h1>Cookie Set</h1>")
+    res.set_cookie("theme", "dark")
+    return res
+
+@app.route("/show_cookie")
+def show_cookie():
+    cookie_value = request.cookies.get("theme")
+    return cookie_value
+
+@app.errorhandler(404)
+def page_not_found(e):
+    return render_template('404.html'), 404
 
 if __name__ == '__main__':
     app.run(debug=True, port=5000, host='0.0.0.0')
