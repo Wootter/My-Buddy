@@ -54,11 +54,15 @@ body{
 #sidebar > ul > li:first-child .logo{
   font-weight: 600;
 }
-#sidebar ul li.active a{
+#sidebar ul li.active span{
   color: var(--accent-clr);
 }
 
 #sidebar ul li.active a svg{
+  fill: var(--accent-clr);
+}
+
+#sidebar ul li.active svg{
   fill: var(--accent-clr);
 }
 
@@ -184,6 +188,9 @@ main p{
 }
 
 input[type=text],input[type=text]::placeholder{
+ color:white;
+}
+input[type=email],input[type=email]::placeholder{
  color:white;
 }
 input[type=password],input[type=password]::placeholder{
