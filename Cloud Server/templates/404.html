@@ -4,6 +4,22 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+  <script>
+    // Apply theme immediately to prevent flash
+    (function() {
+      if (localStorage.getItem('lightmode') === 'active') {
+        document.documentElement.classList.add('lightmode');
+        // Also add to body when it becomes available
+        if (document.body) {
+          document.body.classList.add('lightmode');
+        } else {
+          document.addEventListener('DOMContentLoaded', function() {
+            document.body.classList.add('lightmode');
+          });
+        }
+      }
+    })();
+  </script>
   <script type="text/javascript" src="{{ url_for('static', filename='js/app.js') }}" defer></script>
   <title>404 - Page Not Found</title>
   <style>

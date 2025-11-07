@@ -9,6 +9,7 @@ Description: This script will be used to service the website.
 '''
 
 from flask import Flask, render_template, make_response, request, session
+from dummy_data import dummy_user
 
 app = Flask(__name__)
 
@@ -22,7 +23,7 @@ def login():
 
 @app.route('/profile')
 def profile():
-    return render_template('profile.html')
+    return render_template('profile.html', user=dummy_user)
 
 @app.route('/data')
 def data():
@@ -39,17 +40,6 @@ def register():
 @app.route('/forgot-password')
 def forgot_password():
     return render_template('forgot-password.html')
-
-@app.route("/cookie")
-def cookie():
-    res = make_response("<h1>Cookie Set</h1>")
-    res.set_cookie("theme", "dark")
-    return res
-
-@app.route("/show_cookie")
-def show_cookie():
-    cookie_value = request.cookies.get("theme")
-    return cookie_value
 
 @app.errorhandler(404)
 def page_not_found(e):

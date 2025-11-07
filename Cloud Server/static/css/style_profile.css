@@ -1,0 +1,250 @@
+
+
+
+
+/* Info Items */
+.info-item {
+  margin-bottom: 20px;
+  padding-bottom: 20px;
+  border-bottom: 1px solid var(--line-clr);
+}
+
+.info-item:last-child {
+  border-bottom: none;
+  margin-bottom: 15px;
+  padding-bottom: 0;
+}
+
+.info-item label {
+  display: block;
+  font-size: 12px;
+  color: var(--secondary-text-clr);
+  text-transform: uppercase;
+  font-weight: 600;
+  letter-spacing: 0.5px;
+  margin-bottom: 8px;
+}
+
+.info-item p {
+  font-size: 16px;
+  color: var(--text-clr);
+  margin: 0;
+  font-weight: 500;
+}
+
+.status-active {
+  color: #4ade80 !important;
+  font-weight: 600;
+}
+
+/* Device Items */
+.device-item {
+  display: flex;
+  align-items: center;
+  gap: 15px;
+  padding: 15px;
+  background-color: var(--base-clr);
+  border-radius: 8px;
+  margin-bottom: 12px;
+  transition: all 200ms ease;
+}
+
+.device-item:hover {
+  background-color: rgba(94, 99, 255, 0.05);
+  border: 1px solid rgba(94, 99, 255, 0.2);
+}
+
+.device-icon {
+  font-size: 32px;
+  flex-shrink: 0;
+}
+
+.device-info {
+  flex: 1;
+}
+
+.device-info h3 {
+  font-size: 15px;
+  color: var(--text-clr);
+  margin: 0 0 4px 0;
+  font-weight: 600;
+}
+
+.device-info p {
+  font-size: 13px;
+  color: var(--secondary-text-clr);
+  margin: 0;
+}
+
+.device-status {
+  font-size: 13px;
+  font-weight: 600;
+  color: #4ade80;
+  white-space: nowrap;
+}
+
+/* Activity Items */
+.activity-item {
+  padding: 15px;
+  background-color: var(--base-clr);
+  border-left: 3px solid var(--accent-clr);
+  border-radius: 6px;
+  margin-bottom: 12px;
+}
+
+.activity-time {
+  font-size: 12px;
+  color: var(--secondary-text-clr);
+  text-transform: uppercase;
+  font-weight: 600;
+  letter-spacing: 0.5px;
+  margin-bottom: 8px;
+}
+
+.activity-description strong {
+  display: block;
+  color: var(--text-clr);
+  margin-bottom: 4px;
+  font-weight: 600;
+}
+
+.activity-description p {
+  font-size: 13px;
+  color: var(--secondary-text-clr);
+  margin: 0;
+}
+
+/* Setting Items */
+.setting-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 15px;
+  background-color: var(--base-clr);
+  border-radius: 8px;
+  margin-bottom: 12px;
+  gap: 15px;
+}
+
+.setting-info {
+  flex: 1;
+}
+
+.setting-info h3 {
+  font-size: 15px;
+  color: var(--text-clr);
+  margin: 0 0 4px 0;
+  font-weight: 600;
+}
+
+.setting-info p {
+  font-size: 13px;
+  color: var(--secondary-text-clr);
+  margin: 0;
+}
+
+/* Preference Items */
+.preference-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 15px;
+  background-color: var(--base-clr);
+  border-radius: 8px;
+  margin-bottom: 12px;
+  gap: 15px;
+}
+
+.preference-info {
+  flex: 1;
+}
+
+.preference-info h3 {
+  font-size: 15px;
+  color: var(--text-clr);
+  margin: 0 0 4px 0;
+  font-weight: 600;
+}
+
+.preference-info p {
+  font-size: 13px;
+  color: var(--secondary-text-clr);
+  margin: 0;
+}
+
+.preference-select {
+  background-color: var(--hover-clr);
+  color: var(--text-clr);
+  border: 1px solid var(--line-clr);
+  padding: 8px 12px;
+  border-radius: 6px;
+  font-size: 13px;
+  cursor: pointer;
+  transition: all 200ms ease;
+}
+
+.preference-select:hover {
+  border-color: var(--accent-clr);
+}
+
+.preference-toggle {
+  width: 50px;
+  height: 28px;
+  appearance: none;
+  background-color: var(--line-clr);
+  border-radius: 14px;
+  cursor: pointer;
+  position: relative;
+  transition: all 200ms ease;
+  border: none;
+}
+
+.preference-toggle::before {
+  content: '';
+  position: absolute;
+  width: 24px;
+  height: 24px;
+  background-color: white;
+  border-radius: 50%;
+  top: 2px;
+  left: 2px;
+  transition: all 200ms ease;
+}
+
+.preference-toggle:checked {
+  background-color: var(--accent-clr);
+}
+
+.preference-toggle:checked::before {
+  left: 24px;
+}
+
+/* Danger Zone */
+.danger-zone {
+  border: 1px solid rgba(239, 68, 68, 0.3);
+  background-color: rgba(239, 68, 68, 0.05);
+}
+
+.danger-btn {
+  width: 100%;
+  padding: 12px;
+  margin-bottom: 10px;
+  background-color: rgba(239, 68, 68, 0.2);
+  color: #ef4444;
+  border: 1px solid #ef4444;
+  border-radius: 8px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 200ms ease;
+  font-size: 14px;
+}
+
+.danger-btn:hover {
+  background-color: #ef4444;
+  color: white;
+  box-shadow: 0 4px 15px rgba(239, 68, 68, 0.3);
+}
+
+.danger-btn:last-child {
+  margin-bottom: 0;
+}
