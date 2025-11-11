@@ -1,0 +1,40 @@
+# Python cache
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+
+# Virtual environments
+venv/
+env/
+ENV/
+.venv
+
+# Database files (contains user data and passwords!)
+*.db
+*.sqlite
+*.sqlite3
+instance/
+
+# IDE and editor files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Environment variables (contains secret keys!)
+.env
+.env.local
+
+# Flask stuff
+instance/
+.webassets-cache
+
+# Logs
+*.log

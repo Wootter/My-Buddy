@@ -4,12 +4,12 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
   <script>
     // Apply theme immediately to prevent flash
     (function() {
       if (localStorage.getItem('lightmode') === 'active') {
         document.documentElement.classList.add('lightmode');
-        // Also add to body when it becomes available
         if (document.body) {
           document.body.classList.add('lightmode');
         } else {
@@ -21,7 +21,50 @@
     })();
   </script>
   <script type="text/javascript" src="{{ url_for('static', filename='js/app.js') }}" defer></script>
-  <title>Data</title>
+  <title>Sensor Data</title>
+  <style>
+    .chart-container {
+      position: relative;
+      height: 400px;
+      margin: 30px 0;
+      padding: 20px;
+      background: rgba(255, 255, 255, 0.05);
+      border-radius: 10px;
+    }
+    .chart-title {
+      font-size: 1.5em;
+      margin-bottom: 15px;
+      color: var(--text-clr);
+    }
+    .stats-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 20px;
+      margin: 20px 0;
+    }
+    .stat-card {
+      padding: 20px;
+      background: rgba(255, 255, 255, 0.05);
+      border-radius: 10px;
+      text-align: center;
+    }
+    .stat-value {
+      font-size: 2em;
+      font-weight: bold;
+      color: var(--base-clr);
+    }
+    .stat-label {
+      color: var(--text-clr);
+      opacity: 0.8;
+      margin-top: 5px;
+    }
+    .no-data {
+      text-align: center;
+      padding: 50px;
+      color: var(--text-clr);
+      opacity: 0.6;
+    }
+  </style>
 </head>
 <body>
   <nav id="sidebar">
@@ -74,9 +117,9 @@
         </a>
       </li>
       <li>
-        <a href="/login">
+        <a href="/logout">
           <svg xmlns="http://www.w3.org/2000/svg" height="24px" viewBox="0 -960 960 960" width="24px" fill="#e8eaed"><path d="M480-120v-80h280v-560H480v-80h280q33 0 56.5 23.5T840-760v560q0 33-23.5 56.5T760-120H480Zm-80-160-55-58 102-102H120v-80h327L345-622l55-58 200 200-200 200Z"/></svg>
-          <span>Login</span>
+          <span>Logout</span>
         </a>
       </li>
     </ul>
@@ -84,8 +127,195 @@
 
   <main>
     <div class="container">
-      <h2>Welcome to My Buddy</h2>
-      <p>Your one-stop solution for all your needs.</p>
+      <h1>Sensor Data Dashboard</h1>
+      
+      <button id="refresh-btn" onclick="refreshData()" style="
+        padding: 12px 24px;
+        background: var(--base-clr);
+        color: white;
+        border: none;
+        border-radius: 8px;
+        font-size: 1em;
+        cursor: pointer;
+        margin-bottom: 20px;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+      ">
+        <svg id="refresh-icon" xmlns="http://www.w3.org/2000/svg" height="20px" viewBox="0 -960 960 960" width="20px" fill="white">
+          <path d="M480-160q-134 0-227-93t-93-227q0-134 93-227t227-93q69 0 132 28.5T720-690v-110h80v280H520v-80h168q-32-56-87.5-88T480-720q-100 0-170 70t-70 170q0 100 70 170t170 70q77 0 139-44t87-116h84q-28 106-114 173t-196 67Z"/>
+        </svg>
+        <span id="refresh-text">Refresh Data Now</span>
+      </button>
+      
+      {% if sensors %}
+        <div class="stats-grid">
+          <div class="stat-card">
+            <div class="stat-value">{{ sensors|length }}</div>
+            <div class="stat-label">Total Sensors</div>
+          </div>
+          {% for chart in charts %}
+          <div class="stat-card">
+            <div class="stat-value">{{ chart.count }}</div>
+            <div class="stat-label">{{ chart.name }} Readings (24h)</div>
+          </div>
+          {% endfor %}
+        </div>
+
+        {% if charts %}
+          {% for chart in charts %}
+          <div class="chart-container">
+            <h3 class="chart-title">{{ chart.name }} - {{ chart.type|title }}</h3>
+            <canvas id="chart-{{ loop.index }}"></canvas>
+          </div>
+          {% endfor %}
+
+          <script>
+            // Refresh data function
+            async function refreshData() {
+              const btn = document.getElementById('refresh-btn');
+              const text = document.getElementById('refresh-text');
+              const icon = document.getElementById('refresh-icon');
+              
+              // Disable button and show loading state
+              btn.disabled = true;
+              btn.style.opacity = '0.6';
+              btn.style.cursor = 'not-allowed';
+              text.textContent = 'Fetching from Viam...';
+              icon.style.animation = 'spin 1s linear infinite';
+              
+              try {
+                const response = await fetch('/api/viam/fetch-now', {
+                  method: 'POST'
+                });
+                const result = await response.json();
+                
+                if (result.success) {
+                  text.textContent = `✓ Fetched ${result.readings_saved} readings`;
+                  setTimeout(() => {
+                    // Reload page to show new data
+                    window.location.reload();
+                  }, 1000);
+                } else {
+                  text.textContent = '✗ Fetch failed';
+                  setTimeout(() => {
+                    text.textContent = 'Refresh Data Now';
+                    btn.disabled = false;
+                    btn.style.opacity = '1';
+                    btn.style.cursor = 'pointer';
+                    icon.style.animation = '';
+                  }, 2000);
+                }
+              } catch (error) {
+                text.textContent = '✗ Error occurred';
+                setTimeout(() => {
+                  text.textContent = 'Refresh Data Now';
+                  btn.disabled = false;
+                  btn.style.opacity = '1';
+                  btn.style.cursor = 'pointer';
+                  icon.style.animation = '';
+                }, 2000);
+              }
+            }
+            
+            // Add CSS animation for spinning icon
+            const style = document.createElement('style');
+            style.textContent = `
+              @keyframes spin {
+                from { transform: rotate(0deg); }
+                to { transform: rotate(360deg); }
+              }
+            `;
+            document.head.appendChild(style);
+            
+            // Chart.js configuration
+            const chartData = {{ charts|tojson }};
+            
+            // Create a unified timeline from all sensor data
+            const allTimestamps = new Set();
+            chartData.forEach(sensor => {
+              sensor.data.forEach(d => {
+                allTimestamps.add(d.timestamp);
+              });
+            });
+            
+            // Sort timestamps chronologically
+            const sortedTimestamps = Array.from(allTimestamps).sort();
+            const sharedLabels = sortedTimestamps.map(ts => new Date(ts).toLocaleTimeString());
+            
+            // Create charts with shared X-axis
+            chartData.forEach((sensor, index) => {
+              const ctx = document.getElementById(`chart-${index + 1}`).getContext('2d');
+              
+              // Map sensor data to the shared timeline
+              const timestampToValue = {};
+              sensor.data.forEach(d => {
+                timestampToValue[d.timestamp] = d.value;
+              });
+              
+              const values = sortedTimestamps.map(ts => timestampToValue[ts] !== undefined ? timestampToValue[ts] : null);
+              const unit = sensor.data[0]?.unit || '';
+              
+              new Chart(ctx, {
+                type: 'line',
+                data: {
+                  labels: sharedLabels,
+                  datasets: [{
+                    label: `${sensor.name} (${unit})`,
+                    data: values,
+                    borderColor: 'rgb(75, 192, 192)',
+                    backgroundColor: 'rgba(75, 192, 192, 0.2)',
+                    tension: 0.4,
+                    fill: true,
+                    spanGaps: true  // Connect points even with null values
+                  }]
+                },
+                options: {
+                  responsive: true,
+                  maintainAspectRatio: false,
+                  plugins: {
+                    legend: {
+                      labels: {
+                        color: '#e8eaed'
+                      }
+                    }
+                  },
+                  scales: {
+                    x: {
+                      ticks: {
+                        color: '#e8eaed',
+                        maxTicksLimit: 10
+                      },
+                      grid: {
+                        color: 'rgba(255, 255, 255, 0.1)'
+                      }
+                    },
+                    y: {
+                      ticks: {
+                        color: '#e8eaed'
+                      },
+                      grid: {
+                        color: 'rgba(255, 255, 255, 0.1)'
+                      }
+                    }
+                  }
+                }
+              });
+            });
+          </script>
+        {% else %}
+          <div class="no-data">
+            <h3>No sensor data available yet</h3>
+            <p>Upload sensor data using the API endpoint or wait for the hourly export to run.</p>
+            <p>API endpoint: <code>POST /api/sensor-data/upload</code></p>
+          </div>
+        {% endif %}
+      {% else %}
+        <div class="no-data">
+          <h3>No sensors configured</h3>
+          <p>Add sensors to your account first in the Configure section.</p>
+        </div>
+      {% endif %}
     </div>
   </main>
 </body>

@@ -9,7 +9,6 @@
     (function() {
       if (localStorage.getItem('lightmode') === 'active') {
         document.documentElement.classList.add('lightmode');
-        // Also add to body when it becomes available
         if (document.body) {
           document.body.classList.add('lightmode');
         } else {
@@ -100,7 +99,6 @@
         </div>
       </section>
 
-      <!-- Profile Stats Grid -->
       <section class="profile-stats">
         <div class="stat-card">
           <div class="stat-icon">📊</div>
@@ -132,11 +130,8 @@
         </div>
       </section>
 
-      <!-- Profile Content Grid -->
       <div class="profile-grid">
-        <!-- Left Column - User Information -->
         <div class="profile-column-left">
-          <!-- Account Information -->
           <section class="profile-section">
             <div class="section-header">
               <h2>Account Information</h2>
@@ -160,7 +155,6 @@
             <button class="edit-profile-btn">Edit Profile</button>
           </section>
 
-          <!-- Connected Devices -->
           <section class="profile-section">
             <div class="section-header">
               <h2>Connected Devices</h2>
@@ -178,7 +172,6 @@
             {% endfor %}
           </section>
 
-          <!-- Recent Activity -->
           <section class="profile-section">
             <div class="section-header">
               <h2>Recent Activity</h2>
@@ -195,9 +188,7 @@
           </section>
         </div>
 
-        <!-- Right Column - Settings & Preferences -->
         <div class="profile-column-right">
-          <!-- Security Settings -->
           <section class="profile-section">
             <div class="section-header">
               <h2>Security</h2>
@@ -225,7 +216,6 @@
             </div>
           </section>
 
-          <!-- Preferences -->
           <section class="profile-section">
             <div class="section-header">
               <h2>Preferences</h2>
@@ -256,11 +246,11 @@
             </div>
           </section>
 
-          <!-- Danger Zone -->
           <section class="profile-section danger-zone">
             <div class="section-header">
               <h2>Danger Zone</h2>
             </div>
+            <button class="danger-btn">Logout</button>
             <button class="danger-btn">Export My Data</button>
             <button class="danger-btn">Delete Account</button>
           </section>
