@@ -1,6 +1,6 @@
 46.101.171.129 {
-    handle /static/* {
-        root * /home/YOUR_USERNAME/My-Buddy/Cloud Server
+    handle_path /static/* {
+        root * "/root/My-Buddy/Cloud Server"
         file_server
     }
     
