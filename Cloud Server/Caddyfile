@@ -1,8 +1,3 @@
 46.101.171.129 {
-    handle_path /static/* {
-        root * "/root/My-Buddy/Cloud Server"
-        file_server
-    }
-    
     reverse_proxy 127.0.0.1:8000
 }
