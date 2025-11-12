@@ -23,7 +23,10 @@ import logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-app = Flask(__name__)
+app = Flask(__name__,
+            static_url_path='/static',
+            static_folder='static',
+            template_folder='templates')
 app.config.from_object(Config)
 
 # Initialize DB and migrations

@@ -1,3 +1,8 @@
-http://46.101.171.129/ {
-    reverse_proxy localhost:8000
+46.101.171.129 {
+    handle /static/* {
+        root * /home/YOUR_USERNAME/My-Buddy/Cloud Server
+        file_server
+    }
+    
+    reverse_proxy 127.0.0.1:8000
 }
