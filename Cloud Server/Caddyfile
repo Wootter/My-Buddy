@@ -1,6 +1,6 @@
 my-buddy.tech, www.my-buddy.tech, https://my-buddy.tech, http://my-buddy.tech {
     handle /static/* {
-        rootgit /root/My-Buddy/Cloud\ Server
+        root /root/My-Buddy/Cloud\ Server
         file_server
     }
     
