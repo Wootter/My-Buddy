@@ -154,7 +154,7 @@
               <label>Member Since</label>
               <p>{{ user.member_since }}</p>
             </div>
-            <button class="edit-profile-btn">Edit Profile</button>
+            <button class="edit-profile-btn" onclick="openEditUsernameModal()">Edit Username</button>
           </section>
 
           <section class="profile-section">
@@ -261,28 +261,51 @@
     </div>
   </main>
 
-  <!-- Edit Profile Modal -->
-  <div id="editProfileModal" class="modal">
+  <!-- Edit Username Modal -->
+  <div id="editUsernameModal" class="modal">
     <div class="modal-content">
-      <span class="close" onclick="closeEditModal()">&times;</span>
-      <h2>Edit Profile</h2>
-      <form id="editProfileForm">
+      <span class="close" onclick="closeEditUsernameModal()">&times;</span>
+      <h2>Edit Username</h2>
+      <form id="editUsernameForm">
         <div class="form-group">
-          <label for="username">Username</label>
-          <input type="text" id="username" name="username" placeholder="Enter new username (optional)" />
+          <label for="new_username">New Username</label>
+          <input type="text" id="new_username" name="username" placeholder="Enter new username" required />
         </div>
         <div class="form-group">
-          <label for="password">New Password</label>
-          <input type="password" id="password" name="password" placeholder="Enter new password (optional)" />
+          <label for="username_password">Password</label>
+          <input type="password" id="username_password" name="current_password" placeholder="Enter your password to confirm" required />
         </div>
-        <div class="form-group">
-          <label for="current_password">Current Password *</label>
-          <input type="password" id="current_password" name="current_password" placeholder="Required to confirm changes" required />
-        </div>
-        <div id="editModalMessage" class="modal-message" style="display: none;"></div>
+        <div id="usernameMessage" class="modal-message" style="display: none;"></div>
         <div class="form-buttons">
-          <button type="button" class="cancel-btn" onclick="closeEditModal()">Cancel</button>
-          <button type="submit" class="save-btn">Save Changes</button>
+          <button type="button" class="cancel-btn" onclick="closeEditUsernameModal()">Cancel</button>
+          <button type="submit" class="save-btn">Save Username</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Edit Password Modal -->
+  <div id="editPasswordModal" class="modal">
+    <div class="modal-content">
+      <span class="close" onclick="closeEditPasswordModal()">&times;</span>
+      <h2>Change Password</h2>
+      <form id="editPasswordForm">
+        <div class="form-group">
+          <label for="current_pass">Current Password</label>
+          <input type="password" id="current_pass" name="current_password" placeholder="Enter current password" required />
+        </div>
+        <div class="form-group">
+          <label for="new_pass">New Password</label>
+          <input type="password" id="new_pass" name="password" placeholder="Enter new password (min 6 characters)" required />
+        </div>
+        <div class="form-group">
+          <label for="confirm_pass">Confirm Password</label>
+          <input type="password" id="confirm_pass" placeholder="Confirm new password" required />
+        </div>
+        <div id="passwordMessage" class="modal-message" style="display: none;"></div>
+        <div class="form-buttons">
+          <button type="button" class="cancel-btn" onclick="closeEditPasswordModal()">Cancel</button>
+          <button type="submit" class="save-btn">Change Password</button>
         </div>
       </form>
     </div>
@@ -395,28 +418,49 @@
   </style>
 
   <script>
-    document.querySelector('.edit-profile-btn').addEventListener('click', function() {
-      document.getElementById('editProfileModal').style.display = 'block';
-      document.getElementById('editProfileForm').reset();
-      document.getElementById('editModalMessage').style.display = 'none';
-    });
-
-    function closeEditModal() {
-      document.getElementById('editProfileModal').style.display = 'none';
+    // Username Modal Functions
+    function openEditUsernameModal() {
+      document.getElementById('editUsernameModal').style.display = 'block';
+      document.getElementById('editUsernameForm').reset();
+      document.getElementById('usernameMessage').style.display = 'none';
     }
 
+    function closeEditUsernameModal() {
+      document.getElementById('editUsernameModal').style.display = 'none';
+    }
+
+    // Password Modal Functions
+    function openEditPasswordModal() {
+      document.getElementById('editPasswordModal').style.display = 'block';
+      document.getElementById('editPasswordForm').reset();
+      document.getElementById('passwordMessage').style.display = 'none';
+    }
+
+    function closeEditPasswordModal() {
+      document.getElementById('editPasswordModal').style.display = 'none';
+    }
+
+    // Close modal when clicking outside
     window.onclick = function(event) {
-      const modal = document.getElementById('editProfileModal');
-      if (event.target == modal) {
-        modal.style.display = 'none';
+      const usernameModal = document.getElementById('editUsernameModal');
+      const passwordModal = document.getElementById('editPasswordModal');
+      if (event.target == usernameModal) {
+        usernameModal.style.display = 'none';
+      }
+      if (event.target == passwordModal) {
+        passwordModal.style.display = 'none';
       }
     };
 
-    document.getElementById('editProfileForm').addEventListener('submit', async function(e) {
+    // Handle Username Form Submit
+    document.getElementById('editUsernameForm').addEventListener('submit', async function(e) {
       e.preventDefault();
       
-      const formData = new FormData(this);
-      const messageEl = document.getElementById('editModalMessage');
+      const formData = new FormData();
+      formData.append('username', document.getElementById('new_username').value);
+      formData.append('current_password', document.getElementById('username_password').value);
+      
+      const messageEl = document.getElementById('usernameMessage');
       
       try {
         const response = await fetch('/edit-profile', {
@@ -427,11 +471,11 @@
         const data = await response.json();
         
         if (data.success) {
-          messageEl.textContent = data.message;
+          messageEl.textContent = 'Username updated successfully!';
           messageEl.className = 'modal-message success';
           messageEl.style.display = 'block';
           setTimeout(() => {
-            closeEditModal();
+            closeEditUsernameModal();
             location.reload();
           }, 1500);
         } else {
@@ -440,9 +484,66 @@
           messageEl.style.display = 'block';
         }
       } catch (error) {
-        messageEl.textContent = 'Error updating profile';
+        messageEl.textContent = 'Error updating username';
         messageEl.className = 'modal-message error';
         messageEl.style.display = 'block';
+      }
+    });
+
+    // Handle Password Form Submit
+    document.getElementById('editPasswordForm').addEventListener('submit', async function(e) {
+      e.preventDefault();
+      
+      const newPass = document.getElementById('new_pass').value;
+      const confirmPass = document.getElementById('confirm_pass').value;
+      
+      if (newPass !== confirmPass) {
+        const messageEl = document.getElementById('passwordMessage');
+        messageEl.textContent = 'Passwords do not match';
+        messageEl.className = 'modal-message error';
+        messageEl.style.display = 'block';
+        return;
+      }
+      
+      const formData = new FormData();
+      formData.append('password', newPass);
+      formData.append('current_password', document.getElementById('current_pass').value);
+      
+      const messageEl = document.getElementById('passwordMessage');
+      
+      try {
+        const response = await fetch('/edit-profile', {
+          method: 'POST',
+          body: formData
+        });
+        
+        const data = await response.json();
+        
+        if (data.success) {
+          messageEl.textContent = 'Password changed successfully!';
+          messageEl.className = 'modal-message success';
+          messageEl.style.display = 'block';
+          setTimeout(() => {
+            closeEditPasswordModal();
+            location.reload();
+          }, 1500);
+        } else {
+          messageEl.textContent = data.error || 'Update failed';
+          messageEl.className = 'modal-message error';
+          messageEl.style.display = 'block';
+        }
+      } catch (error) {
+        messageEl.textContent = 'Error changing password';
+        messageEl.className = 'modal-message error';
+        messageEl.style.display = 'block';
+      }
+    });
+
+    // Add Change Password button in Security section
+    document.addEventListener('DOMContentLoaded', function() {
+      const securityButtons = document.querySelectorAll('.profile-section .setting-btn');
+      if (securityButtons.length > 0) {
+        securityButtons[0].addEventListener('click', openEditPasswordModal);
       }
     });
   </script>
