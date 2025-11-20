@@ -170,6 +170,48 @@ def profile():
     return render_template('profile.html', user=user_data)
 
 
+@app.route('/edit-profile', methods=['GET', 'POST'])
+@login_required
+def edit_profile():
+    """Edit user profile (username and password)"""
+    from models import Account
+    
+    account = Account.query.get(session['user_id'])
+    
+    if request.method == 'POST':
+        new_username = request.form.get('username')
+        new_password = request.form.get('password')
+        current_password = request.form.get('current_password')
+        
+        # Validate current password
+        if not current_password or not account.check_password(current_password):
+            return jsonify({'success': False, 'error': 'Current password is incorrect'}), 400
+        
+        # Update username if provided and different
+        if new_username and new_username != account.username:
+            # Check if username already exists
+            existing = Account.query.filter_by(username=new_username).first()
+            if existing:
+                return jsonify({'success': False, 'error': 'Username already taken'}), 400
+            account.username = new_username
+        
+        # Update password if provided
+        if new_password and len(new_password) >= 6:
+            account.set_password(new_password)
+        elif new_password and len(new_password) < 6:
+            return jsonify({'success': False, 'error': 'Password must be at least 6 characters'}), 400
+        
+        try:
+            db.session.commit()
+            session['username'] = account.username  # Update session with new username
+            return jsonify({'success': True, 'message': 'Profile updated successfully'})
+        except Exception as e:
+            db.session.rollback()
+            return jsonify({'success': False, 'error': f'Update failed: {str(e)}'}), 500
+    
+    return jsonify({'error': 'Method not allowed'}), 405
+
+
 @app.route('/data')
 @login_required
 def data():
@@ -266,6 +308,9 @@ def logout():
     session.clear()
     flash('You have been logged out.', 'info')
     return redirect(url_for('home'))
+
+@app.route("/edit-profile")
+def edit_profile():
 
 
 @app.errorhandler(404)
