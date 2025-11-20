@@ -544,126 +544,139 @@ def test_viam():
 @app.route('/api/devices', methods=['GET'])
 @login_required
 def get_devices():
-    """Get all Viam devices for current user"""
-    from models import ViaDevice
+    """Get all robots connected by current user"""
+    from models import UserRobot
     
     account_id = session['user_id']
-    devices = ViaDevice.query.filter_by(account_id=account_id).all()
+    user_robots = UserRobot.query.filter_by(account_id=account_id).all()
     
     return jsonify({
         'success': True,
-        'devices': [device.to_dict() for device in devices]
+        'devices': [ur.to_dict() for ur in user_robots]
     })
 
 
 @app.route('/api/devices', methods=['POST'])
 @login_required
 def add_device():
-    """Add a new Viam device"""
-    from models import ViaDevice
+    """Add a robot connection for current user"""
+    from models import Robot, UserRobot
     
     account_id = session['user_id']
     data = request.get_json()
     
     # Validate required fields
-    required = ['device_name', 'viam_api_key', 'viam_api_key_id', 'viam_robot_address']
+    required = ['robot_name', 'viam_api_key', 'viam_api_key_id', 'viam_robot_address']
     if not all(field in data for field in required):
         return jsonify({'success': False, 'error': 'Missing required fields'}), 400
     
-    # Check if device name already exists for this user
-    existing = ViaDevice.query.filter_by(
-        account_id=account_id,
-        device_name=data['device_name']
-    ).first()
+    # Check if this user already has this robot
+    existing_robot = Robot.query.filter_by(viam_robot_address=data['viam_robot_address']).first()
     
-    if existing:
-        return jsonify({'success': False, 'error': 'Device name already exists'}), 400
+    if existing_robot:
+        # Robot exists, check if user already has it
+        existing_user_robot = UserRobot.query.filter_by(
+            account_id=account_id,
+            robot_id=existing_robot.id
+        ).first()
+        
+        if existing_user_robot:
+            return jsonify({'success': False, 'error': 'You already have this robot connected'}), 400
+        
+        robot = existing_robot
+    else:
+        # Create new robot
+        robot = Robot(
+            robot_name=data['robot_name'],
+            viam_robot_address=data['viam_robot_address'],
+            status='disconnected'
+        )
+        db.session.add(robot)
+        db.session.flush()  # Get the robot ID
     
-    # Create new device
-    device = ViaDevice(
+    # Create user-robot connection
+    user_robot = UserRobot(
         account_id=account_id,
-        device_name=data['device_name'],
+        robot_id=robot.id,
         viam_api_key=data['viam_api_key'],
-        viam_api_key_id=data['viam_api_key_id'],
-        viam_robot_address=data['viam_robot_address'],
-        status='disconnected'
+        viam_api_key_id=data['viam_api_key_id']
     )
     
     try:
-        db.session.add(device)
+        db.session.add(user_robot)
         db.session.commit()
         return jsonify({
             'success': True,
-            'message': 'Device added successfully',
-            'device': device.to_dict()
+            'message': 'Robot connected successfully',
+            'device': user_robot.to_dict()
         }), 201
     except Exception as e:
         db.session.rollback()
         return jsonify({'success': False, 'error': str(e)}), 500
 
 
-@app.route('/api/devices/<int:device_id>', methods=['DELETE'])
+@app.route('/api/devices/<int:user_robot_id>', methods=['DELETE'])
 @login_required
-def delete_device(device_id):
-    """Delete a Viam device"""
-    from models import ViaDevice
+def delete_device(user_robot_id):
+    """Delete a robot connection (doesn't delete robot data)"""
+    from models import UserRobot
     
     account_id = session['user_id']
-    device = ViaDevice.query.filter_by(id=device_id, account_id=account_id).first()
+    user_robot = UserRobot.query.filter_by(id=user_robot_id, account_id=account_id).first()
     
-    if not device:
+    if not user_robot:
         return jsonify({'success': False, 'error': 'Device not found'}), 404
     
     try:
-        db.session.delete(device)
+        db.session.delete(user_robot)
         db.session.commit()
-        return jsonify({'success': True, 'message': 'Device deleted successfully'})
+        return jsonify({'success': True, 'message': 'Robot disconnected successfully'})
     except Exception as e:
         db.session.rollback()
         return jsonify({'success': False, 'error': str(e)}), 500
 
 
-@app.route('/api/devices/<int:device_id>/connect', methods=['POST'])
+@app.route('/api/devices/<int:user_robot_id>/connect', methods=['POST'])
 @login_required
-def connect_device(device_id):
-    """Test connection to a Viam device"""
-    from models import ViaDevice
+def connect_device(user_robot_id):
+    """Test connection to a robot and update status"""
+    from models import UserRobot
     from viam.rpc.dial import Credentials, DialOptions
     from viam.robot.client import RobotClient
     
     account_id = session['user_id']
-    device = ViaDevice.query.filter_by(id=device_id, account_id=account_id).first()
+    user_robot = UserRobot.query.filter_by(id=user_robot_id, account_id=account_id).first()
     
-    if not device:
+    if not user_robot:
         return jsonify({'success': False, 'error': 'Device not found'}), 404
     
     try:
         # Test connection with stored credentials
         opts = RobotClient.Options.with_api_key(
-            api_key=device.viam_api_key,
-            api_key_id=device.viam_api_key_id
+            api_key=user_robot.viam_api_key,
+            api_key_id=user_robot.viam_api_key_id
         )
         
-        robot = RobotClient.at_address(device.viam_robot_address, opts)
+        robot = RobotClient.at_address(user_robot.robot.viam_robot_address, opts)
         robot.close()
         
-        # Update device status
-        device.status = 'online'
-        device.last_connected = datetime.utcnow()
+        # Update robot status
+        user_robot.robot.status = 'online'
+        user_robot.robot.last_connected = datetime.utcnow()
         db.session.commit()
         
         return jsonify({
             'success': True,
             'message': 'Connected successfully',
-            'device': device.to_dict()
+            'device': user_robot.to_dict()
         })
     except Exception as e:
-        device.status = 'offline'
+        user_robot.robot.status = 'offline'
         db.session.commit()
         return jsonify({
             'success': False,
             'error': f'Connection failed: {str(e)}',
-            'device': device.to_dict()
+            'device': user_robot.to_dict()
         }), 500
 
 

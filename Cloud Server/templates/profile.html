@@ -314,8 +314,8 @@
       <h2>Add Viam Device</h2>
       <form id="addDeviceForm">
         <div class="form-group">
-          <label for="device_name">Device Name</label>
-          <input type="text" id="device_name" name="device_name" placeholder="e.g., My Raspberry Pi" required />
+          <label for="robot_name">Robot Name</label>
+          <input type="text" id="robot_name" name="robot_name" placeholder="e.g., My Raspberry Pi" required />
         </div>
         <div class="form-group">
           <label for="viam_api_key">Viam API Key</label>
@@ -450,13 +450,18 @@
 
     .device-item {
       display: flex;
-      align-items: center;
-      justify-content: space-between;
+      flex-direction: column;
       padding: 15px;
       background: var(--hover-clr);
       border-radius: 8px;
       margin-bottom: 12px;
       border: 1px solid var(--line-clr);
+    }
+
+    .device-header {
+      display: flex;
+      align-items: center;
+      margin-bottom: 12px;
     }
 
     .device-icon {
@@ -480,13 +485,19 @@
       opacity: 0.7;
     }
 
+    .device-footer {
+      display: flex;
+      gap: 10px;
+      justify-content: space-between;
+      align-items: center;
+    }
+
     .device-action-btn, .device-delete-btn {
       padding: 8px 16px;
       border: none;
       border-radius: 6px;
       cursor: pointer;
       font-size: 0.9em;
-      margin-left: 8px;
     }
 
     .device-action-btn {
@@ -686,17 +697,21 @@
         noDevices.style.display = 'none';
         devicesList.innerHTML = data.devices.map(device => `
           <div class="device-item">
-            <div class="device-icon">🤖</div>
-            <div class="device-info">
-              <h3>${device.device_name}</h3>
-              <p>${device.viam_robot_address} • Last seen: ${device.last_connected ? new Date(device.last_connected).toLocaleDateString() : 'Never'}</p>
+            <div class="device-header">
+              <div class="device-icon">🤖</div>
+              <div class="device-info">
+                <h3>${device.robot_name}</h3>
+                <p>${device.viam_robot_address} • Last seen: ${device.last_connected ? new Date(device.last_connected).toLocaleDateString() : 'Never'}</p>
+              </div>
             </div>
-            <div style="display: flex; gap: 10px; align-items: center;">
+            <div class="device-footer">
               <span class="device-status" style="padding: 4px 12px; border-radius: 4px; background: ${device.status === 'online' ? '#2ecc71' : '#e74c3c'}; color: white; font-size: 0.9em;">
                 ${device.status}
               </span>
-              <button class="device-action-btn" onclick="connectDevice(${device.id})">Connect</button>
-              <button class="device-delete-btn" onclick="deleteDevice(${device.id})">Delete</button>
+              <div style="display: flex; gap: 8px;">
+                <button class="device-action-btn" onclick="connectDevice(${device.id})">Connect</button>
+                <button class="device-delete-btn" onclick="deleteDevice(${device.id})">Delete</button>
+              </div>
             </div>
           </div>
         `).join('');
@@ -751,7 +766,7 @@
       e.preventDefault();
       
       const formData = {
-        device_name: document.getElementById('device_name').value,
+        robot_name: document.getElementById('robot_name').value,
         viam_api_key: document.getElementById('viam_api_key').value,
         viam_api_key_id: document.getElementById('viam_api_key_id').value,
         viam_robot_address: document.getElementById('viam_robot_address').value

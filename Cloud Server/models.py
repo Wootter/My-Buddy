@@ -11,7 +11,8 @@ class Account(db.Model):
     password_hash = db.Column(db.String(128), nullable=False)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
 
-    sensors = db.relationship('Sensor', backref='account', cascade='all, delete-orphan', lazy=True)
+    # Relationship to robots (through UserRobot)
+    # user_robots relationship is auto-created in UserRobot model
 
     def set_password(self, password):
         self.password_hash = generate_password_hash(password)
@@ -19,15 +20,15 @@ class Account(db.Model):
     def check_password(self, password):
         return check_password_hash(self.password_hash, password)
 
-    def to_dict(self, include_sensors=False):
+    def to_dict(self, include_robots=False):
         d = {
             'id': self.id,
             'username': self.username,
             'email': self.email,
             'created_at': self.created_at.isoformat()
         }
-        if include_sensors:
-            d['sensors'] = [s.to_dict() for s in self.sensors]
+        if include_robots:
+            d['robots'] = [ur.to_dict() for ur in self.user_robots]
         return d
 
 
@@ -36,7 +37,7 @@ class Sensor(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     name = db.Column(db.String(120), nullable=False)
     sensor_type = db.Column(db.String(80), nullable=True)
-    account_id = db.Column(db.Integer, db.ForeignKey('account.id'), nullable=False)
+    robot_id = db.Column(db.Integer, db.ForeignKey('robot.id'), nullable=False)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
 
     # Relationship to sensor data readings
@@ -47,7 +48,7 @@ class Sensor(db.Model):
             'id': self.id,
             'name': self.name,
             'sensor_type': self.sensor_type,
-            'account_id': self.account_id,
+            'robot_id': self.robot_id,
             'created_at': self.created_at.isoformat()
         }
 
@@ -75,27 +76,50 @@ class SensorData(db.Model):
         }
 
 
-class ViaDevice(db.Model):
-    """Stores Viam device credentials for connected devices"""
-    __tablename__ = 'via_device'
+class Robot(db.Model):
+    """Represents a physical Viam robot (can be shared by multiple users)"""
+    __tablename__ = 'robot'
     id = db.Column(db.Integer, primary_key=True)
-    account_id = db.Column(db.Integer, db.ForeignKey('account.id'), nullable=False)
-    device_name = db.Column(db.String(120), nullable=False)
-    viam_api_key = db.Column(db.String(256), nullable=False)
-    viam_api_key_id = db.Column(db.String(256), nullable=False)
-    viam_robot_address = db.Column(db.String(256), nullable=False)
+    robot_name = db.Column(db.String(120), nullable=False)
+    viam_robot_address = db.Column(db.String(256), unique=True, nullable=False)  # Unique identifier
     status = db.Column(db.String(20), default='disconnected')  # online, offline, disconnected
     last_connected = db.Column(db.DateTime, nullable=True)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
 
-    account = db.relationship('Account', backref='via_devices')
+    # Relationships
+    user_robots = db.relationship('UserRobot', backref='robot', cascade='all, delete-orphan', lazy=True)
+    sensors = db.relationship('Sensor', backref='robot', cascade='all, delete-orphan', lazy=True)
 
     def to_dict(self):
         return {
             'id': self.id,
-            'device_name': self.device_name,
+            'robot_name': self.robot_name,
             'viam_robot_address': self.viam_robot_address,
             'status': self.status,
             'last_connected': self.last_connected.isoformat() if self.last_connected else None,
             'created_at': self.created_at.isoformat()
+        }
+
+
+class UserRobot(db.Model):
+    """Junction table: User's connection to a Robot (stores credentials)"""
+    __tablename__ = 'user_robot'
+    id = db.Column(db.Integer, primary_key=True)
+    account_id = db.Column(db.Integer, db.ForeignKey('account.id'), nullable=False)
+    robot_id = db.Column(db.Integer, db.ForeignKey('robot.id'), nullable=False)
+    viam_api_key = db.Column(db.String(256), nullable=False)  # User's credentials for this robot
+    viam_api_key_id = db.Column(db.String(256), nullable=False)
+    added_at = db.Column(db.DateTime, default=datetime.utcnow)
+
+    account = db.relationship('Account', backref='user_robots', cascade='all, delete-orphan')
+
+    def to_dict(self):
+        return {
+            'id': self.id,
+            'robot_id': self.robot_id,
+            'robot_name': self.robot.robot_name,
+            'viam_robot_address': self.robot.viam_robot_address,
+            'status': self.robot.status,
+            'last_connected': self.robot.last_connected.isoformat() if self.robot.last_connected else None,
+            'added_at': self.added_at.isoformat()
         }
