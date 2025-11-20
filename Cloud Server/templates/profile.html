@@ -352,12 +352,17 @@
 
     .modal-content {
       background-color: var(--base-clr);
-      margin: 10% auto;
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
       padding: 30px;
       border-radius: 10px;
       width: 90%;
       max-width: 400px;
       color: var(--text-clr);
+      max-height: 90vh;
+      overflow-y: auto;
     }
 
     .close {
