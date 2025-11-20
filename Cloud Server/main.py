@@ -99,6 +99,7 @@ def login():
     if request.method == 'POST':
         email = request.form.get('email')
         password = request.form.get('password')
+        remember = request.form.get('remember')
         
         if not email or not password:
             return render_template('login.html', error='Email and password required')
@@ -111,6 +112,12 @@ def login():
             session['user_id'] = account.id
             session['username'] = account.username
             session['email'] = account.email
+            
+            # Handle "remember me" - extend session timeout to 30 days
+            if remember:
+                session.permanent = True
+                app.permanent_session_lifetime = timedelta(days=30)
+            
             flash('Login successful!', 'success')
             return redirect(url_for('profile'))
         else:

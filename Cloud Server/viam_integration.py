@@ -178,3 +178,55 @@ def test_viam_connection():
     except Exception as e:
         print(f"✗ Connection failed: {e}")
         return False
+
+
+async def _get_robot_info_async():
+    """Async function to get robot/device information."""
+    from viam.robot.client import RobotClient
+    
+    opts = RobotClient.Options.with_api_key(
+        api_key=VIAM_API_KEY,
+        api_key_id=VIAM_API_KEY_ID
+    )
+    robot = await RobotClient.at_address(VIAM_ROBOT_ADDRESS, opts)
+    
+    try:
+        # Get basic robot info
+        robot_info = {
+            'name': VIAM_ROBOT_ADDRESS.split('.')[0],  # Extract robot name from address
+            'address': VIAM_ROBOT_ADDRESS,
+            'status': 'Online',
+            'components': len(robot.resource_names),
+            'last_seen': datetime.utcnow().strftime('%Y-%m-%d %H:%M:%S UTC')
+        }
+        
+        return robot_info
+        
+    finally:
+        await robot.close()
+
+
+def get_robot_info():
+    """
+    Get information about the connected Viam robot/Raspberry Pi.
+    Returns dict with name, address, status, etc.
+    """
+    try:
+        import asyncio
+        
+        loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(loop)
+        try:
+            return loop.run_until_complete(_get_robot_info_async())
+        finally:
+            loop.close()
+        
+    except Exception as e:
+        logger.error(f"Failed to get robot info: {e}")
+        return {
+            'name': VIAM_ROBOT_ADDRESS.split('.')[0],
+            'address': VIAM_ROBOT_ADDRESS,
+            'status': 'Offline',
+            'components': 0,
+            'last_seen': 'Never'
+        }

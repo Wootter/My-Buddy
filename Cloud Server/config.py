@@ -5,5 +5,5 @@ class Config:
     SQLALCHEMY_DATABASE_URI = 'sqlite:///mybuddy.db'
     SQLALCHEMY_TRACK_MODIFICATIONS = False
     
-    # Secret key for sessions (change this in production!)
-    SECRET_KEY = os.environ.get('SECRET_KEY') or 'dev-secret-key-change-in-production'
+    # Secret key for sessions - loaded from environment variable
+    SECRET_KEY = os.environ.get('SECRET_KEY', 'dev-key-only-for-local-testing')
