@@ -129,12 +129,19 @@ def login():
 @app.route('/profile')
 @login_required
 def profile():
-    from models import Account, Sensor
+    from models import Account, Sensor, UserRobot
     account = Account.query.get(session['user_id'])
     
     if not account:
         session.clear()
         return redirect(url_for('login'))
+    
+    # Get user's robots to count sensors
+    user_robots = UserRobot.query.filter_by(account_id=account.id).all()
+    robot_ids = [ur.robot_id for ur in user_robots]
+    
+    # Count sensors for user's robots
+    sensor_count = Sensor.query.filter(Sensor.robot_id.in_(robot_ids)).count() if robot_ids else 0
     
     # Prepare user data for template
     user_data = {
@@ -146,7 +153,7 @@ def profile():
         'status': 'Active',
         'member_since': account.created_at.strftime('%B %d, %Y'),
         'stats': {
-            'data_points': Sensor.query.filter_by(account_id=account.id).count(),
+            'data_points': sensor_count,
             'bot_interactions': 0,
             'active_hours': '0h',
             'system_uptime': '99.9%'

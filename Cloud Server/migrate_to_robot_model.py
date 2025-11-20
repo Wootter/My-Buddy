@@ -36,9 +36,20 @@ def migrate():
                 account_id, device_name, api_key, key_id, robot_address = (
                     via_device[1], via_device[2], via_device[3], via_device[4], via_device[5]
                 )
-                status, last_connected, created_at = (
+                status, last_connected_str, created_at_str = (
                     via_device[6], via_device[7], via_device[8]
                 )
+                
+                # Parse datetime strings to datetime objects
+                try:
+                    last_connected = datetime.fromisoformat(last_connected_str) if last_connected_str else None
+                except (ValueError, TypeError):
+                    last_connected = None
+                
+                try:
+                    created_at = datetime.fromisoformat(created_at_str) if created_at_str else datetime.utcnow()
+                except (ValueError, TypeError):
+                    created_at = datetime.utcnow()
                 
                 print(f"\nMigrating: {device_name}")
                 
