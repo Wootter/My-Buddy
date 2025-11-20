@@ -111,7 +111,7 @@ class UserRobot(db.Model):
     viam_api_key_id = db.Column(db.String(256), nullable=False)
     added_at = db.Column(db.DateTime, default=datetime.utcnow)
 
-    account = db.relationship('Account', backref='user_robots', cascade='all, delete-orphan')
+    account = db.relationship('Account', backref='user_robots')
 
     def to_dict(self):
         return {

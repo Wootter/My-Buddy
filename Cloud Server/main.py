@@ -216,15 +216,23 @@ def edit_profile():
 @login_required
 def data():
     """Display sensor data with graphs"""
-    from models import Sensor, SensorData
+    from models import Sensor, SensorData, UserRobot
     
-    # Get all sensors for current user
+    # Get all robots connected by current user
     account_id = session['user_id']
-    sensors = Sensor.query.filter_by(account_id=account_id).all()
+    user_robots = UserRobot.query.filter_by(account_id=account_id).all()
+    robot_ids = [ur.robot_id for ur in user_robots]
+    
+    if not robot_ids:
+        # User has no robots connected
+        return render_template('data.html', sensor_charts=[])
+    
+    # Get all sensors for user's robots
+    sensors = Sensor.query.filter(Sensor.robot_id.in_(robot_ids)).all()
     
     # Find the earliest timestamp from VEML7700 or MH-SR602 to align all graphs
     earliest_viam_reading = SensorData.query.join(Sensor)\
-        .filter(Sensor.account_id == account_id)\
+        .filter(Sensor.robot_id.in_(robot_ids))\
         .filter(Sensor.name.in_(['VEML7700 Light', 'MH-SR602 Motion']))\
         .order_by(SensorData.timestamp.asc())\
         .first()
@@ -356,19 +364,19 @@ def add_sensor(account_id):
     if not name:
         return jsonify({'error': 'sensor name required'}), 400
 
-    from models import Sensor, Account
-    acct = Account.query.get_or_404(account_id)
-    sensor = Sensor(name=name, sensor_type=sensor_type, account_id=acct.id)
+    from models import Sensor, Robot
+    robot = Robot.query.get_or_404(account_id)
+    sensor = Sensor(name=name, sensor_type=sensor_type, robot_id=robot.id)
     db.session.add(sensor)
     db.session.commit()
     return jsonify(sensor.to_dict()), 201
 
 
-@app.route('/api/accounts/<int:account_id>/sensors', methods=['GET'])
-def list_sensors(account_id):
-    from models import Sensor, Account
-    acct = Account.query.get_or_404(account_id)
-    sensors = Sensor.query.filter_by(account_id=acct.id).all()
+@app.route('/api/robots/<int:robot_id>/sensors', methods=['GET'])
+def list_sensors(robot_id):
+    from models import Sensor, Robot
+    robot = Robot.query.get_or_404(robot_id)
+    sensors = Sensor.query.filter_by(robot_id=robot.id).all()
     return jsonify([s.to_dict() for s in sensors])
 
 
