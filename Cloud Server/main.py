@@ -539,5 +539,133 @@ def test_viam():
     })
 
 
+# ==================== VIAM DEVICE MANAGEMENT ====================
+
+@app.route('/api/devices', methods=['GET'])
+@login_required
+def get_devices():
+    """Get all Viam devices for current user"""
+    from models import ViaDevice
+    
+    account_id = session['user_id']
+    devices = ViaDevice.query.filter_by(account_id=account_id).all()
+    
+    return jsonify({
+        'success': True,
+        'devices': [device.to_dict() for device in devices]
+    })
+
+
+@app.route('/api/devices', methods=['POST'])
+@login_required
+def add_device():
+    """Add a new Viam device"""
+    from models import ViaDevice
+    
+    account_id = session['user_id']
+    data = request.get_json()
+    
+    # Validate required fields
+    required = ['device_name', 'viam_api_key', 'viam_api_key_id', 'viam_robot_address']
+    if not all(field in data for field in required):
+        return jsonify({'success': False, 'error': 'Missing required fields'}), 400
+    
+    # Check if device name already exists for this user
+    existing = ViaDevice.query.filter_by(
+        account_id=account_id,
+        device_name=data['device_name']
+    ).first()
+    
+    if existing:
+        return jsonify({'success': False, 'error': 'Device name already exists'}), 400
+    
+    # Create new device
+    device = ViaDevice(
+        account_id=account_id,
+        device_name=data['device_name'],
+        viam_api_key=data['viam_api_key'],
+        viam_api_key_id=data['viam_api_key_id'],
+        viam_robot_address=data['viam_robot_address'],
+        status='disconnected'
+    )
+    
+    try:
+        db.session.add(device)
+        db.session.commit()
+        return jsonify({
+            'success': True,
+            'message': 'Device added successfully',
+            'device': device.to_dict()
+        }), 201
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+@app.route('/api/devices/<int:device_id>', methods=['DELETE'])
+@login_required
+def delete_device(device_id):
+    """Delete a Viam device"""
+    from models import ViaDevice
+    
+    account_id = session['user_id']
+    device = ViaDevice.query.filter_by(id=device_id, account_id=account_id).first()
+    
+    if not device:
+        return jsonify({'success': False, 'error': 'Device not found'}), 404
+    
+    try:
+        db.session.delete(device)
+        db.session.commit()
+        return jsonify({'success': True, 'message': 'Device deleted successfully'})
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+@app.route('/api/devices/<int:device_id>/connect', methods=['POST'])
+@login_required
+def connect_device(device_id):
+    """Test connection to a Viam device"""
+    from models import ViaDevice
+    from viam.rpc.dial import Credentials, DialOptions
+    from viam.robot.client import RobotClient
+    
+    account_id = session['user_id']
+    device = ViaDevice.query.filter_by(id=device_id, account_id=account_id).first()
+    
+    if not device:
+        return jsonify({'success': False, 'error': 'Device not found'}), 404
+    
+    try:
+        # Test connection with stored credentials
+        opts = RobotClient.Options.with_api_key(
+            api_key=device.viam_api_key,
+            api_key_id=device.viam_api_key_id
+        )
+        
+        robot = RobotClient.at_address(device.viam_robot_address, opts)
+        robot.close()
+        
+        # Update device status
+        device.status = 'online'
+        device.last_connected = datetime.utcnow()
+        db.session.commit()
+        
+        return jsonify({
+            'success': True,
+            'message': 'Connected successfully',
+            'device': device.to_dict()
+        })
+    except Exception as e:
+        device.status = 'offline'
+        db.session.commit()
+        return jsonify({
+            'success': False,
+            'error': f'Connection failed: {str(e)}',
+            'device': device.to_dict()
+        }), 500
+
+
 if __name__ == '__main__':
     app.run(debug=True, port=5000, host='0.0.0.0')

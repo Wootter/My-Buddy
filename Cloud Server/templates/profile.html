@@ -160,18 +160,14 @@
           <section class="profile-section">
             <div class="section-header">
               <h2>Connected Devices</h2>
-              <button class="add-device-btn">+ Add Device</button>
+              <button class="add-device-btn" onclick="openAddDeviceModal()">+ Add Device</button>
             </div>
-            {% for device in user.devices %}
-            <div class="device-item">
-              <div class="device-icon">{{ device.icon }}</div>
-              <div class="device-info">
-                <h3>{{ device.name }}</h3>
-                <p>{{ device.ip_address }} • Last seen: {{ device.last_seen }}</p>
-              </div>
-              <span class="device-status" id="device-status-{{ loop.index0 }}">{{ device.status }}</span>
+            <div id="devices-list">
+              <!-- Devices will be loaded here -->
             </div>
-            {% endfor %}
+            <div id="no-devices" style="text-align: center; color: var(--text-clr); opacity: 0.6; padding: 20px;">
+              No devices connected yet
+            </div>
           </section>
 
           <section class="profile-section">
@@ -311,6 +307,37 @@
     </div>
   </div>
 
+  <!-- Add Device Modal -->
+  <div id="addDeviceModal" class="modal">
+    <div class="modal-content">
+      <span class="close" onclick="closeAddDeviceModal()">&times;</span>
+      <h2>Add Viam Device</h2>
+      <form id="addDeviceForm">
+        <div class="form-group">
+          <label for="device_name">Device Name</label>
+          <input type="text" id="device_name" name="device_name" placeholder="e.g., My Raspberry Pi" required />
+        </div>
+        <div class="form-group">
+          <label for="viam_api_key">Viam API Key</label>
+          <input type="password" id="viam_api_key" name="viam_api_key" placeholder="Enter your Viam API key" required />
+        </div>
+        <div class="form-group">
+          <label for="viam_api_key_id">Viam API Key ID</label>
+          <input type="password" id="viam_api_key_id" name="viam_api_key_id" placeholder="Enter your Viam API key ID" required />
+        </div>
+        <div class="form-group">
+          <label for="viam_robot_address">Viam Robot Address</label>
+          <input type="text" id="viam_robot_address" name="viam_robot_address" placeholder="e.g., my-buddy-main.1zxw399cc5.viam.cloud" required />
+        </div>
+        <div id="addDeviceMessage" class="modal-message" style="display: none;"></div>
+        <div class="form-buttons">
+          <button type="button" class="cancel-btn" onclick="closeAddDeviceModal()">Cancel</button>
+          <button type="submit" class="save-btn">Add Device</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
   <style>
     .modal {
       display: none;
@@ -414,6 +441,65 @@
     .modal-message.error {
       background: #e74c3c;
       color: white;
+    }
+
+    .device-item {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 15px;
+      background: var(--hover-clr);
+      border-radius: 8px;
+      margin-bottom: 12px;
+      border: 1px solid var(--line-clr);
+    }
+
+    .device-icon {
+      font-size: 2em;
+      margin-right: 15px;
+    }
+
+    .device-info {
+      flex: 1;
+    }
+
+    .device-info h3 {
+      margin: 0 0 5px 0;
+      color: var(--text-clr);
+    }
+
+    .device-info p {
+      margin: 0;
+      font-size: 0.9em;
+      color: var(--text-clr);
+      opacity: 0.7;
+    }
+
+    .device-action-btn, .device-delete-btn {
+      padding: 8px 16px;
+      border: none;
+      border-radius: 6px;
+      cursor: pointer;
+      font-size: 0.9em;
+      margin-left: 8px;
+    }
+
+    .device-action-btn {
+      background: #4a9eff;
+      color: white;
+    }
+
+    .device-action-btn:hover {
+      background: #2e7fd4;
+    }
+
+    .device-delete-btn {
+      background: #e74c3c;
+      color: white;
+    }
+
+    .device-delete-btn:hover {
+      background: #c0392b;
     }
   </style>
 
@@ -544,6 +630,158 @@
       const securityButtons = document.querySelectorAll('.profile-section .setting-btn');
       if (securityButtons.length > 0) {
         securityButtons[0].addEventListener('click', openEditPasswordModal);
+      }
+      
+      // Load devices on page load
+      loadDevices();
+    });
+
+    // ==================== DEVICE MANAGEMENT ====================
+
+    function openAddDeviceModal() {
+      document.getElementById('addDeviceModal').style.display = 'block';
+      document.getElementById('addDeviceForm').reset();
+      document.getElementById('addDeviceMessage').style.display = 'none';
+    }
+
+    function closeAddDeviceModal() {
+      document.getElementById('addDeviceModal').style.display = 'none';
+    }
+
+    // Close modal when clicking outside
+    window.onclick = function(event) {
+      const usernameModal = document.getElementById('editUsernameModal');
+      const passwordModal = document.getElementById('editPasswordModal');
+      const deviceModal = document.getElementById('addDeviceModal');
+      if (event.target == usernameModal) {
+        usernameModal.style.display = 'none';
+      }
+      if (event.target == passwordModal) {
+        passwordModal.style.display = 'none';
+      }
+      if (event.target == deviceModal) {
+        deviceModal.style.display = 'none';
+      }
+    };
+
+    async function loadDevices() {
+      try {
+        const response = await fetch('/api/devices');
+        const data = await response.json();
+        
+        const devicesList = document.getElementById('devices-list');
+        const noDevices = document.getElementById('no-devices');
+        
+        if (data.devices.length === 0) {
+          devicesList.innerHTML = '';
+          noDevices.style.display = 'block';
+          return;
+        }
+        
+        noDevices.style.display = 'none';
+        devicesList.innerHTML = data.devices.map(device => `
+          <div class="device-item">
+            <div class="device-icon">🤖</div>
+            <div class="device-info">
+              <h3>${device.device_name}</h3>
+              <p>${device.viam_robot_address} • Last seen: ${device.last_connected ? new Date(device.last_connected).toLocaleDateString() : 'Never'}</p>
+            </div>
+            <div style="display: flex; gap: 10px; align-items: center;">
+              <span class="device-status" style="padding: 4px 12px; border-radius: 4px; background: ${device.status === 'online' ? '#2ecc71' : '#e74c3c'}; color: white; font-size: 0.9em;">
+                ${device.status}
+              </span>
+              <button class="device-action-btn" onclick="connectDevice(${device.id})">Connect</button>
+              <button class="device-delete-btn" onclick="deleteDevice(${device.id})">Delete</button>
+            </div>
+          </div>
+        `).join('');
+      } catch (error) {
+        console.error('Error loading devices:', error);
+      }
+    }
+
+    async function connectDevice(deviceId) {
+      try {
+        const response = await fetch(`/api/devices/${deviceId}/connect`, {
+          method: 'POST'
+        });
+        const data = await response.json();
+        
+        if (data.success) {
+          alert('Device connected successfully!');
+        } else {
+          alert('Connection failed: ' + data.error);
+        }
+        loadDevices();
+      } catch (error) {
+        console.error('Error connecting device:', error);
+        alert('Error connecting to device');
+      }
+    }
+
+    async function deleteDevice(deviceId) {
+      if (!confirm('Are you sure you want to delete this device?')) {
+        return;
+      }
+      
+      try {
+        const response = await fetch(`/api/devices/${deviceId}`, {
+          method: 'DELETE'
+        });
+        const data = await response.json();
+        
+        if (data.success) {
+          alert('Device deleted successfully');
+          loadDevices();
+        } else {
+          alert('Delete failed: ' + data.error);
+        }
+      } catch (error) {
+        console.error('Error deleting device:', error);
+        alert('Error deleting device');
+      }
+    }
+
+    document.getElementById('addDeviceForm').addEventListener('submit', async function(e) {
+      e.preventDefault();
+      
+      const formData = {
+        device_name: document.getElementById('device_name').value,
+        viam_api_key: document.getElementById('viam_api_key').value,
+        viam_api_key_id: document.getElementById('viam_api_key_id').value,
+        viam_robot_address: document.getElementById('viam_robot_address').value
+      };
+      
+      const messageEl = document.getElementById('addDeviceMessage');
+      
+      try {
+        const response = await fetch('/api/devices', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify(formData)
+        });
+        
+        const data = await response.json();
+        
+        if (data.success) {
+          messageEl.textContent = 'Device added successfully!';
+          messageEl.className = 'modal-message success';
+          messageEl.style.display = 'block';
+          setTimeout(() => {
+            closeAddDeviceModal();
+            loadDevices();
+          }, 1000);
+        } else {
+          messageEl.textContent = data.error || 'Failed to add device';
+          messageEl.className = 'modal-message error';
+          messageEl.style.display = 'block';
+        }
+      } catch (error) {
+        messageEl.textContent = 'Error adding device';
+        messageEl.className = 'modal-message error';
+        messageEl.style.display = 'block';
       }
     });
   </script>

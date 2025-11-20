@@ -73,3 +73,29 @@ class SensorData(db.Model):
             'extra_data': self.extra_data,
             'created_at': self.created_at.isoformat()
         }
+
+
+class ViaDevice(db.Model):
+    """Stores Viam device credentials for connected devices"""
+    __tablename__ = 'via_device'
+    id = db.Column(db.Integer, primary_key=True)
+    account_id = db.Column(db.Integer, db.ForeignKey('account.id'), nullable=False)
+    device_name = db.Column(db.String(120), nullable=False)
+    viam_api_key = db.Column(db.String(256), nullable=False)
+    viam_api_key_id = db.Column(db.String(256), nullable=False)
+    viam_robot_address = db.Column(db.String(256), nullable=False)
+    status = db.Column(db.String(20), default='disconnected')  # online, offline, disconnected
+    last_connected = db.Column(db.DateTime, nullable=True)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+
+    account = db.relationship('Account', backref='via_devices')
+
+    def to_dict(self):
+        return {
+            'id': self.id,
+            'device_name': self.device_name,
+            'viam_robot_address': self.viam_robot_address,
+            'status': self.status,
+            'last_connected': self.last_connected.isoformat() if self.last_connected else None,
+            'created_at': self.created_at.isoformat()
+        }
