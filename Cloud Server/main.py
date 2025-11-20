@@ -309,10 +309,6 @@ def logout():
     flash('You have been logged out.', 'info')
     return redirect(url_for('home'))
 
-@app.route("/edit-profile")
-def edit_profile():
-
-
 @app.errorhandler(404)
 def page_not_found(e):
     return render_template('404.html'), 404
