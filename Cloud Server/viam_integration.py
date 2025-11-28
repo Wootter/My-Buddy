@@ -12,15 +12,16 @@ import logging
 logger = logging.getLogger(__name__)
 
 # Sensor mapping: Viam component name → sensor name & reading key
+# Based on your DHT22 module: https://github.com/Wootter/viam-dht22-module
 VIAM_SENSORS = [
     {
-        'viam_name': 'dht22_sensor',
+        'viam_name': 'DHT22',  # Updated to match your config
         'sensor_name': 'DHT22 Temperature',
         'reading_key': 'temperature_celsius',
         'unit': '°C'
     },
     {
-        'viam_name': 'dht22_sensor',
+        'viam_name': 'DHT22',  # Updated to match your config
         'sensor_name': 'DHT22 Humidity',
         'reading_key': 'humidity_percent',
         'unit': '%'
@@ -54,6 +55,11 @@ async def _fetch_viam_data_async(robot_id, api_key, api_key_id, robot_address):
     )
     robot = await RobotClient.at_address(robot_address, opts)
     
+    # List all available components for debugging
+    logger.info(f"Available components in robot:")
+    for resource in robot.resource_names:
+        logger.info(f"  - {resource}")
+    
     timestamp = datetime.utcnow()
     readings_saved = 0
     
@@ -77,37 +83,55 @@ async def _fetch_viam_data_async(robot_id, api_key, api_key_id, robot_address):
                     db.session.add(sensor)
                     db.session.flush()
                 
-                # Get the sensor component from Viam
-                viam_sensor = ViamSensor.from_robot(robot, sensor_config['viam_name'])
-                sensor_readings = await viam_sensor.get_readings()
-                
-                # Extract the specific reading
-                reading_key = sensor_config['reading_key']
-                if reading_key in sensor_readings:
-                    value = sensor_readings[reading_key]
+                try:
+                    # Get the sensor component from Viam
+                    logger.info(f"  Attempting to get sensor component: {sensor_config['viam_name']}")
+                    viam_sensor = ViamSensor.from_robot(robot, sensor_config['viam_name'])
+                    logger.info(f"  Got sensor object: {type(viam_sensor)}")
                     
-                    # Convert boolean to float for storage
-                    if isinstance(value, bool):
-                        value = 1.0 if value else 0.0
+                    sensor_readings = await viam_sensor.get_readings()
+                    logger.info(f"  DEBUG {sensor_config['sensor_name']}: Raw readings = {sensor_readings}")
+                    
+                    # Extract the specific reading
+                    reading_key = sensor_config['reading_key']
+                    if reading_key in sensor_readings:
+                        value = sensor_readings[reading_key]
+                        
+                        # Convert boolean to float for storage
+                        if isinstance(value, bool):
+                            value = 1.0 if value else 0.0
+                        else:
+                            value = float(value)
+                        
+                        # Store in database
+                        data_point = SensorData(
+                            sensor_id=sensor.id,
+                            timestamp=timestamp,
+                            value=value,
+                            unit=sensor_config['unit']
+                        )
+                        db.session.add(data_point)
+                        readings_saved += 1
+                        
+                        logger.info(f"  ✓ {sensor_config['sensor_name']}: {value} {sensor_config['unit']}")
                     else:
-                        value = float(value)
-                    
-                    # Store in database
-                    data_point = SensorData(
-                        sensor_id=sensor.id,
-                        timestamp=timestamp,
-                        value=value,
-                        unit=sensor_config['unit']
-                    )
-                    db.session.add(data_point)
-                    readings_saved += 1
-                    
-                    logger.info(f"  ✓ {sensor_config['sensor_name']}: {value} {sensor_config['unit']}")
-                else:
-                    logger.warning(f"  ⚠ {sensor_config['sensor_name']}: Key '{reading_key}' not found in {list(sensor_readings.keys())}")
+                        logger.warning(f"  ⚠ {sensor_config['sensor_name']}: Key '{reading_key}' not found in {list(sensor_readings.keys())}")
+                        
+                except Exception as sensor_error:
+                    # Check if it's a component not found error
+                    if "not found" in str(sensor_error).lower() or "component" in str(sensor_error).lower():
+                        logger.error(f"  ✗ {sensor_config['sensor_name']}: Component '{sensor_config['viam_name']}' not found in robot")
+                        logger.error(f"    This usually means the module isn't loaded or component isn't configured")
+                    else:
+                        logger.error(f"  ✗ {sensor_config['sensor_name']}: Sensor error - {sensor_error}")
+                    raise sensor_error
                     
             except Exception as e:
-                logger.error(f"  ✗ {sensor_config['sensor_name']}: {e}")
+                logger.error(f"  ✗ {sensor_config['sensor_name']}: {type(e).__name__}: {e}")
+                # Don't log full traceback for expected component errors
+                if "not found" not in str(e).lower():
+                    import traceback
+                    logger.error(f"  ✗ {sensor_config['sensor_name']} Full traceback: {traceback.format_exc()}")
         
         # Commit all readings
         db.session.commit()
