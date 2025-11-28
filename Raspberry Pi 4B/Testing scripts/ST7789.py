@@ -49,20 +49,25 @@ def init_display():
 
 
 # ===== DRAWING FUNCTIONS =====
-def set_window(x0,y0,x1,y1):
-    write_cmd(0x2A); write_word(x0); write_word(x1)
-    write_cmd(0x2B); write_word(y0); write_word(y1)
-    write_cmd(0x2C)
 
 def fill(color):
-    set_window(0,0,239,239)
-    high = color >> 8
-    low  = color & 0xFF
+    write_cmd(0x2A)  # Column address
+    write_data(0x00); write_data(0x00)  # Start column 0
+    write_data(0x00); write_data(0xEF)  # End column 239
     
-    # Send pixel data in chunks
-    for row in range(240):
-        buf = [high, low] * 240  # One row = 240 pixels * 2 bytes
-        spi.xfer2(buf)
+    write_cmd(0x2B)  # Row address  
+    write_data(0x00); write_data(0x00)  # Start row 0
+    write_data(0x00); write_data(0xEF)  # End row 239
+    
+    write_cmd(0x2C)  # Memory write
+    
+    # Send color data - just blast it all at once, smaller chunks
+    high = color >> 8
+    low = color & 0xFF
+    
+    for _ in range(240):  # 240 rows
+        chunk = [high, low] * 240  # 240 pixels per row
+        spi.xfer2(chunk)
 
 
 # ===== MAIN TEST =====
