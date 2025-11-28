@@ -11,7 +11,7 @@ BL  = 18   # Backlight (optional PWM)
 # ==== SPI SETTINGS ====
 SPI_BUS = 0
 SPI_DEVICE = 0
-SPI_SPEED = 8000000    # 8MHz - more stable for displays
+SPI_SPEED = 1000000    # 1MHz - very slow but stable
 
 # ==== COLOR DEFINITIONS (RGB565) ====
 BLACK  = 0x0000
@@ -25,10 +25,12 @@ COLORS = [RED, GREEN, BLUE, WHITE]
 # ===== LOW LEVEL PIN_WRITE =====
 def write_cmd(value):
     GPIO.output(DC, GPIO.LOW)
+    time.sleep(0.001)  # 1ms delay for DC settling
     spi.xfer2([value])
 
 def write_data(value):
     GPIO.output(DC, GPIO.HIGH)
+    time.sleep(0.001)  # 1ms delay for DC settling
     spi.xfer2([value])
 
 def write_word(value):
@@ -78,13 +80,14 @@ GPIO.setup(BL, GPIO.OUT)
 
 GPIO.output(BL, 1)   # Turn on backlight
 
-GPIO.output(RST, 0); time.sleep(0.05)
-GPIO.output(RST, 1); time.sleep(0.05)
+GPIO.output(RST, 1); time.sleep(0.01)   # High first
+GPIO.output(RST, 0); time.sleep(0.01)   # Reset pulse
+GPIO.output(RST, 1); time.sleep(0.12)   # Release reset, wait longer
 
 spi = spidev.SpiDev()
 spi.open(SPI_BUS, SPI_DEVICE)
 spi.max_speed_hz = SPI_SPEED
-spi.mode = 0
+spi.mode = 3
 
 print("Initializing ST7789...")
 init_display()
