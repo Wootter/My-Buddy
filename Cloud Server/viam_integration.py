@@ -180,6 +180,7 @@ def fetch_and_store_sensor_data():
 async def _test_viam_connection_async(api_key, api_key_id, robot_address):
     """Async test connection to Viam robot."""
     from viam.robot.client import RobotClient
+    from viam.components.sensor import Sensor as ViamSensor
     
     print(f"Testing connection to {robot_address}...")
     
@@ -197,6 +198,31 @@ async def _test_viam_connection_async(api_key, api_key_id, robot_address):
         resources = robot.resource_names
         for resource in resources:
             print(f"  - {resource}")
+        
+        # Test DHT22 sensor if available
+        print(f"\nTesting sensors:")
+        try:
+            dht = ViamSensor.from_robot(robot, "dht22_sensor")
+            readings = await dht.get_readings()
+            print(f"✓ DHT22: {readings}")
+        except Exception as e:
+            print(f"⚠ DHT22: {e}")
+        
+        # Test VEML7700 if available
+        try:
+            veml = ViamSensor.from_robot(robot, "VEML7700")
+            readings = await veml.get_readings()
+            print(f"✓ VEML7700: {readings}")
+        except Exception as e:
+            print(f"⚠ VEML7700: {e}")
+        
+        # Test MH-SR602 if available
+        try:
+            motion = ViamSensor.from_robot(robot, "MH-SR602")
+            readings = await motion.get_readings()
+            print(f"✓ MH-SR602: {readings}")
+        except Exception as e:
+            print(f"⚠ MH-SR602: {e}")
         
     finally:
         await robot.close()

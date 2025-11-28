@@ -237,10 +237,10 @@ def data():
     # Get all sensors for user's robots
     sensors = Sensor.query.filter(Sensor.robot_id.in_(robot_ids)).all()
     
-    # Find the earliest timestamp from VEML7700 or MH-SR602 to align all graphs
+    # Find the earliest timestamp from Viam sensors to align all graphs
     earliest_viam_reading = SensorData.query.join(Sensor)\
         .filter(Sensor.robot_id.in_(robot_ids))\
-        .filter(Sensor.name.in_(['VEML7700 Light', 'MH-SR602 Motion']))\
+        .filter(Sensor.name.in_(['VEML7700 Light', 'MH-SR602 Motion', 'DHT22 Temperature', 'DHT22 Humidity']))\
         .order_by(SensorData.timestamp.asc())\
         .first()
     
@@ -534,8 +534,19 @@ def manual_viam_fetch():
 @app.route('/api/viam/test', methods=['GET'])
 @login_required
 def test_viam():
-    """Test Viam connection"""
+    """Test Viam connection using user's first robot"""
+    from models import UserRobot
     from viam_integration import test_viam_connection
+    
+    # Get user's first robot for testing
+    account_id = session['user_id']
+    user_robot = UserRobot.query.filter_by(account_id=account_id).first()
+    
+    if not user_robot:
+        return jsonify({
+            'status': 'error',
+            'output': 'No robots connected. Please add a robot first.'
+        })
     
     # Capture output
     import io
@@ -543,7 +554,11 @@ def test_viam():
     old_stdout = sys.stdout
     sys.stdout = buffer = io.StringIO()
     
-    success = test_viam_connection()
+    success = test_viam_connection(
+        user_robot.viam_api_key,
+        user_robot.viam_api_key_id,
+        user_robot.robot.viam_robot_address
+    )
     
     output = buffer.getvalue()
     sys.stdout = old_stdout
