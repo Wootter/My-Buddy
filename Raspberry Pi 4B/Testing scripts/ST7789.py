@@ -60,8 +60,15 @@ def fill(color):
     set_window(0,0,239,239)
     high = color >> 8
     low  = color & 0xFF
-    buf = [high, low] * (240*240//2)   # safe buffer size
-    for _ in range(2): spi.xfer2(buf)
+    # Send in smaller chunks to avoid buffer overflow
+    chunk_size = 2000  # Safe chunk size
+    color_bytes = [high, low]
+    total_pixels = 240 * 240
+    
+    for i in range(0, total_pixels * 2, chunk_size):
+        remaining = min(chunk_size, (total_pixels * 2) - i)
+        buf = color_bytes * (remaining // 2)
+        spi.xfer2(buf)
 
 
 # ===== MAIN TEST =====
