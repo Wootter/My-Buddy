@@ -1,6 +1,9 @@
 from datetime import datetime
 from extensions import db
 from werkzeug.security import generate_password_hash, check_password_hash
+from cryptography.fernet import Fernet
+import os
+import sys
 
 
 class Account(db.Model):
@@ -107,11 +110,44 @@ class UserRobot(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     account_id = db.Column(db.Integer, db.ForeignKey('account.id'), nullable=False)
     robot_id = db.Column(db.Integer, db.ForeignKey('robot.id'), nullable=False)
-    viam_api_key = db.Column(db.String(256), nullable=False)  # User's credentials for this robot
-    viam_api_key_id = db.Column(db.String(256), nullable=False)
+    _viam_api_key = db.Column('viam_api_key', db.String(256), nullable=False)
+    _viam_api_key_id = db.Column('viam_api_key_id', db.String(256), nullable=False)
     added_at = db.Column(db.DateTime, default=datetime.utcnow)
 
     account = db.relationship('Account', backref='user_robots')
+
+    # Load Fernet key from environment variable
+    @staticmethod
+    def get_fernet():
+        # Secure Fernet key loading for server-side
+        key = os.environ.get('FERNET_KEY')
+        if not key:
+            print('ERROR: FERNET_KEY environment variable not set.', file=sys.stderr)
+            raise RuntimeError('FERNET_KEY environment variable not set')
+        return Fernet(key)
+
+    def set_viam_api_key(self, api_key):
+        f = self.get_fernet()
+        self._viam_api_key = f.encrypt(api_key.encode()).decode()
+
+    def get_viam_api_key(self):
+        f = self.get_fernet()
+        return f.decrypt(self._viam_api_key.encode()).decode()
+
+    def set_viam_api_key_id(self, api_key_id):
+        f = self.get_fernet()
+        self._viam_api_key_id = f.encrypt(api_key_id.encode()).decode()
+
+    def get_viam_api_key_id(self):
+        f = self.get_fernet()
+        return f.decrypt(self._viam_api_key_id.encode()).decode()
+
+    @classmethod
+    def create_encrypted(cls, account_id, robot_id, api_key, api_key_id):
+        ur = cls(account_id=account_id, robot_id=robot_id)
+        ur.set_viam_api_key(api_key)
+        ur.set_viam_api_key_id(api_key_id)
+        return ur
 
     def to_dict(self):
         return {

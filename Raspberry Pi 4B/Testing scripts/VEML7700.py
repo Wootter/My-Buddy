@@ -1,9 +1,9 @@
 import smbus2
 import time
 
-ADDR = 0x10       # VEML7700 default I2C address
-ALS_REG = 0x04    # ambient light register
-BUS = 1           # I2C bus (Raspberry Pi)
+ADDR = 0x10       
+ALS_REG = 0x04    
+BUS = 1           
 
 GAIN = 0.2304     # multiplier from datasheet
 

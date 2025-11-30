@@ -1,7 +1,7 @@
 import time
 import board
 import digitalio
-from PIL import Image, ImageDraw, ImageFont
+from PIL import Image, ImageDraw
 import adafruit_rgb_display.st7789 as st7789
 
 # Pin config for Raspberry Pi
@@ -10,7 +10,6 @@ dc_pin = digitalio.DigitalInOut(board.D25)     # DC
 reset_pin = digitalio.DigitalInOut(board.D24)  # RST
 spi = board.SPI()
 
-# IMPORTANT — your driver version uses this format
 disp = st7789.ST7789(
     spi,
     rotation=0,
@@ -24,19 +23,19 @@ disp = st7789.ST7789(
     baudrate=8000000
 )
 
-
-# Create black image and draw text
-image = Image.new("RGB", (240, 240), (0, 0, 0))
+# Create white background
+image = Image.new("RGB", (240, 240), (255, 255, 255))
 draw = ImageDraw.Draw(image)
-draw.text((10, 100), "ST7789 OK", fill=(255, 255, 255))
 
-print("Sending image to display...")
+# Draw two black eyes (simple circles)
+eye_radius = 20
+eye_y = 90
+eye_x1 = 70
+eye_x2 = 170
+draw.ellipse((eye_x1-eye_radius, eye_y-eye_radius, eye_x1+eye_radius, eye_y+eye_radius), fill=(0,0,0))
+draw.ellipse((eye_x2-eye_radius, eye_y-eye_radius, eye_x2+eye_radius, eye_y+eye_radius), fill=(0,0,0))
+
+# Display the face
+print("Displaying face...")
 disp.image(image)
-time.sleep(3)
-
-# Fill screen solid colors to confirm
-for color,name in [((255,0,0),"RED"),((0,255,0),"GREEN"),((0,0,255),"BLUE"),((255,255,255),"WHITE")]:
-    img = Image.new("RGB",(240,240),color)
-    disp.image(img)
-    print(name)
-    time.sleep(1)
+time.sleep(5)

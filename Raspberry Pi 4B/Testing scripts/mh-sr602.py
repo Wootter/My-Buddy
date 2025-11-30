@@ -1,13 +1,11 @@
 import RPi.GPIO as GPIO
 import time
 
-PIN = 17  # <-- change to your PIR sensor pin
+PIN = 17 
 
 GPIO.setwarnings(False)
 GPIO.setmode(GPIO.BCM)
 GPIO.setup(PIN, GPIO.IN)
-
-print("MH-SR602 PIR Motion Sensor Test (Ctrl+C to quit)")
 
 try:
     while True:
@@ -19,7 +17,7 @@ try:
         time.sleep(0.2)
 
 except KeyboardInterrupt:
-    print("Exiting...")
+    print("Exited")
 
 finally:
     GPIO.cleanup()
