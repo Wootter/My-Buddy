@@ -710,5 +710,102 @@ def connect_device(user_robot_id):
         }), 500
 
 
+# ==================== SENSOR CONFIGURATION ROUTES ====================
+
+@app.route('/api/robot/<int:robot_id>/sensors', methods=['GET'])
+@login_required
+def get_robot_sensors(robot_id):
+    """Get all sensors for a robot"""
+    from models import UserRobot, Robot, Sensor
+    
+    account_id = session['user_id']
+    
+    # Check if user has access to this robot
+    user_robot = UserRobot.query.filter_by(account_id=account_id, robot_id=robot_id).first()
+    if not user_robot:
+        return jsonify({'success': False, 'error': 'Robot not found or access denied'}), 403
+    
+    robot = Robot.query.get(robot_id)
+    sensors = Sensor.query.filter_by(robot_id=robot_id).all()
+    
+    sensor_list = [s.to_dict() for s in sensors]
+    
+    return jsonify({
+        'success': True,
+        'robot_id': robot_id,
+        'robot_name': robot.robot_name,
+        'sensors': sensor_list
+    })
+
+
+@app.route('/api/sensor/<int:sensor_id>/pins', methods=['POST'])
+@login_required
+def update_sensor_pins(sensor_id):
+    """Update sensor pins directly in Viam's robot configuration"""
+    from models import Sensor, UserRobot
+    from viam.robot.client import RobotClient
+    import json
+    
+    account_id = session['user_id']
+    sensor = Sensor.query.get_or_404(sensor_id)
+    
+    # Verify user has access to this sensor's robot
+    user_robot = UserRobot.query.filter_by(account_id=account_id, robot_id=sensor.robot_id).first()
+    if not user_robot:
+        return jsonify({'success': False, 'error': 'Access denied'}), 403
+    
+    try:
+        data = request.get_json() or {}
+        
+        # Connect to Viam robot
+        opts = RobotClient.Options.with_api_key(
+            api_key=user_robot.get_viam_api_key(),
+            api_key_id=user_robot.get_viam_api_key_id()
+        )
+        robot = RobotClient.at_address(user_robot.robot.viam_robot_address, opts)
+        
+        # Get current robot config
+        config = robot.get_config()
+        
+        # Find and update the component's attributes with new pins
+        for component in config.components:
+            if component.name == sensor.name:
+                # Update component attributes with new pin information
+                if 'attributes' not in component.attributes:
+                    component.attributes = {}
+                
+                # Update pin fields in attributes
+                if 'gpio_pin' in data and data['gpio_pin'] is not None:
+                    component.attributes['gpio_pin'] = str(data['gpio_pin'])
+                if 'i2c_address' in data and data['i2c_address']:
+                    component.attributes['i2c_address'] = data['i2c_address']
+                if 'i2c_bus' in data and data['i2c_bus'] is not None:
+                    component.attributes['i2c_bus'] = str(data['i2c_bus'])
+                if 'spi_bus' in data and data['spi_bus'] is not None:
+                    component.attributes['spi_bus'] = str(data['spi_bus'])
+                if 'spi_device' in data and data['spi_device'] is not None:
+                    component.attributes['spi_device'] = str(data['spi_device'])
+                
+                break
+        
+        # Update the robot configuration in Viam
+        robot.reconfigure_config(config)
+        robot.close()
+        
+        return jsonify({
+            'success': True,
+            'message': 'Sensor pins updated in Viam',
+            'sensor_name': sensor.name
+        }), 200
+        
+    except Exception as e:
+        logger.error(f"Error updating sensor pins: {str(e)}")
+        return jsonify({
+            'success': False,
+            'error': f'Failed to update pins: {str(e)}'
+        }), 500
+
+
 if __name__ == '__main__':
     app.run(debug=True, port=5000, host='0.0.0.0')
+

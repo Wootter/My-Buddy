@@ -4,24 +4,219 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+  <style>
+    .config-container {
+      max-width: 900px;
+      margin: 0 auto;
+      padding: 20px;
+    }
+
+    .robot-selector {
+      margin-bottom: 30px;
+      padding: 15px;
+      background: var(--card-bg);
+      border-radius: 8px;
+      border: 1px solid var(--border-color);
+    }
+
+    .robot-selector select {
+      padding: 10px;
+      border-radius: 5px;
+      border: 1px solid var(--border-color);
+      background: var(--input-bg);
+      color: var(--text-color);
+      font-size: 16px;
+      cursor: pointer;
+      min-width: 250px;
+    }
+
+    .sensors-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(350px, 1fr));
+      gap: 20px;
+      margin-top: 20px;
+    }
+
+    .sensor-card {
+      background: var(--card-bg);
+      border: 1px solid var(--border-color);
+      border-radius: 8px;
+      padding: 20px;
+      transition: all 0.3s ease;
+    }
+
+    .sensor-card:hover {
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+      border-color: var(--primary-color);
+    }
+
+    .sensor-card h3 {
+      margin-top: 0;
+      color: var(--primary-color);
+      font-size: 18px;
+    }
+
+    .sensor-type {
+      font-size: 14px;
+      color: var(--text-secondary);
+      margin-bottom: 15px;
+    }
+
+    .form-group {
+      margin-bottom: 15px;
+    }
+
+    .form-group label {
+      display: block;
+      font-size: 14px;
+      font-weight: 500;
+      margin-bottom: 5px;
+      color: var(--text-color);
+    }
+
+    .form-group input,
+    .form-group select,
+    .form-group textarea {
+      width: 100%;
+      padding: 8px;
+      border: 1px solid var(--border-color);
+      border-radius: 4px;
+      background: var(--input-bg);
+      color: var(--text-color);
+      font-size: 14px;
+      box-sizing: border-box;
+    }
+
+    .form-group input:focus,
+    .form-group select:focus,
+    .form-group textarea:focus {
+      outline: none;
+      border-color: var(--primary-color);
+      box-shadow: 0 0 0 2px rgba(52, 152, 219, 0.1);
+    }
+
+    .pin-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+      margin-bottom: 10px;
+    }
+
+    .button-group {
+      display: flex;
+      gap: 10px;
+      margin-top: 15px;
+    }
+
+    .btn-save, .btn-reset {
+      flex: 1;
+      padding: 10px;
+      border: none;
+      border-radius: 4px;
+      cursor: pointer;
+      font-size: 14px;
+      font-weight: 500;
+      transition: all 0.3s ease;
+    }
+
+    .btn-save {
+      background: var(--primary-color);
+      color: white;
+    }
+
+    .btn-save:hover {
+      opacity: 0.9;
+      transform: translateY(-2px);
+    }
+
+    .btn-reset {
+      background: var(--border-color);
+      color: var(--text-color);
+    }
+
+    .btn-reset:hover {
+      opacity: 0.8;
+    }
+
+    .status-message {
+      padding: 10px;
+      margin-top: 10px;
+      border-radius: 4px;
+      font-size: 13px;
+      display: none;
+    }
+
+    .status-message.success {
+      background: #d4edda;
+      color: #155724;
+      border: 1px solid #c3e6cb;
+      display: block;
+    }
+
+    .status-message.error {
+      background: #f8d7da;
+      color: #721c24;
+      border: 1px solid #f5c6cb;
+      display: block;
+    }
+
+    .empty-state {
+      text-align: center;
+      padding: 40px 20px;
+      color: var(--text-secondary);
+    }
+
+    .collapse-section {
+      margin-bottom: 15px;
+    }
+
+    .collapse-title {
+      background: var(--border-color);
+      padding: 10px;
+      border-radius: 4px;
+      cursor: pointer;
+      font-weight: 500;
+      user-select: none;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .collapse-title:hover {
+      background: var(--border-color-hover, rgba(0,0,0,0.1));
+    }
+
+    .collapse-content {
+      padding: 10px 0;
+      display: none;
+    }
+
+    .collapse-content.open {
+      display: block;
+    }
+
+    .collapse-icon {
+      font-size: 12px;
+      transition: transform 0.3s ease;
+    }
+
+    .collapse-icon.open {
+      transform: rotate(180deg);
+    }
+  </style>
   <script>
     // Apply theme immediately to prevent flash
     (function() {
       if (localStorage.getItem('lightmode') === 'active') {
         document.documentElement.classList.add('lightmode');
-        // Also add to body when it becomes available
         if (document.body) {
           document.body.classList.add('lightmode');
-        } else {
-          document.addEventListener('DOMContentLoaded', function() {
-            document.body.classList.add('lightmode');
-          });
         }
       }
     })();
   </script>
   <script type="text/javascript" src="{{ url_for('static', filename='js/app.js') }}" defer></script>
-  <title>Configure</title>
+  <title>Sensor Configuration</title>
 </head>
 <body>
   <nav id="sidebar">
@@ -60,11 +255,7 @@
         </button>
         <ul class="sub-menu">
           <div>
-            <li><a href="/configure">Light sensor</a></li>
-            <li><a href="/configure">Temperature sensor</a></li>
-            <li><a href="/configure">Humidity sensor</a></li>
-            <li><a href="/configure">Motion sensor</a></li>
-            <li><a href="/configure">Led-strip</a></li>
+            <li><a href="/configure">Sensor Pins</a></li>
           </div>
         </ul>
       </li>
@@ -86,10 +277,235 @@
   </nav>
 
   <main>
-    <div class="container">
-      <h2>Welcome to My Buddy</h2>
-      <p>Your one-stop solution for all your needs.</p>
+    <div class="config-container">
+      <h2>Sensor Pin Configuration</h2>
+      <p>Change your sensor pinouts directly in Viam. Select a robot and update pins - changes take effect immediately.</p>
+
+      <div class="robot-selector">
+        <label for="robot-select">Select Robot:</label>
+        <select id="robot-select" onchange="loadSensors()">
+          <option value="">Choose a robot...</option>
+        </select>
+      </div>
+
+      <div id="sensors-container" class="sensors-grid"></div>
     </div>
   </main>
+
+  <script>
+    // Load user's robots on page load
+    document.addEventListener('DOMContentLoaded', function() {
+      loadRobots();
+    });
+
+    async function loadRobots() {
+      try {
+        const response = await fetch('/api/devices');
+        const data = await response.json();
+        
+        if (data.success && data.devices) {
+          const select = document.getElementById('robot-select');
+          select.innerHTML = '<option value="">Choose a robot...</option>';
+          
+          data.devices.forEach(device => {
+            const option = document.createElement('option');
+            option.value = device.robot_id;
+            option.textContent = device.robot_name;
+            select.appendChild(option);
+          });
+        }
+      } catch (error) {
+        console.error('Error loading robots:', error);
+      }
+    }
+
+    async function loadSensors() {
+      const robotId = document.getElementById('robot-select').value;
+      
+      if (!robotId) {
+        document.getElementById('sensors-container').innerHTML = '';
+        return;
+      }
+
+      try {
+        const response = await fetch(`/api/robot/${robotId}/sensors`);
+        const data = await response.json();
+        
+        if (data.success && data.sensors.length > 0) {
+          renderSensors(data.sensors);
+        } else {
+          document.getElementById('sensors-container').innerHTML = 
+            '<div class="empty-state">No sensors found for this robot</div>';
+        }
+      } catch (error) {
+        console.error('Error loading sensors:', error);
+        document.getElementById('sensors-container').innerHTML = 
+          '<div class="empty-state">Error loading sensors</div>';
+      }
+    }
+
+    function renderSensors(sensors) {
+      const container = document.getElementById('sensors-container');
+      container.innerHTML = '';
+      
+      sensors.forEach(sensor => {
+        const sensorCard = createSensorCard(sensor);
+        container.appendChild(sensorCard);
+      });
+    }
+
+    function createSensorCard(sensor) {
+      const card = document.createElement('div');
+      card.className = 'sensor-card';
+      
+      card.innerHTML = `
+        <h3>${sensor.name}</h3>
+        <div class="sensor-type">${sensor.sensor_type || 'Unknown Type'}</div>
+        
+        <div class="collapse-section">
+          <div class="collapse-title" onclick="toggleCollapse(this)">
+            GPIO Configuration
+            <span class="collapse-icon">▼</span>
+          </div>
+          <div class="collapse-content open">
+            <div class="form-group">
+              <label>GPIO Pin (BCM):</label>
+              <input type="number" class="gpio-pin" placeholder="e.g., 17">
+            </div>
+          </div>
+        </div>
+
+        <div class="collapse-section">
+          <div class="collapse-title" onclick="toggleCollapse(this)">
+            I2C Configuration
+            <span class="collapse-icon">▼</span>
+          </div>
+          <div class="collapse-content">
+            <div class="form-group">
+              <label>I2C Address:</label>
+              <input type="text" class="i2c-address" placeholder="e.g., 0x44">
+            </div>
+            <div class="form-group">
+              <label>I2C Bus:</label>
+              <input type="number" class="i2c-bus" placeholder="e.g., 1">
+            </div>
+          </div>
+        </div>
+
+        <div class="collapse-section">
+          <div class="collapse-title" onclick="toggleCollapse(this)">
+            SPI Configuration
+            <span class="collapse-icon">▼</span>
+          </div>
+          <div class="collapse-content">
+            <div class="pin-grid">
+              <div class="form-group">
+                <label>SPI Bus:</label>
+                <input type="number" class="spi-bus" placeholder="e.g., 0">
+              </div>
+              <div class="form-group">
+                <label>SPI Device:</label>
+                <input type="number" class="spi-device" placeholder="e.g., 0">
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="button-group">
+          <button class="btn-save" onclick="saveSensorPins(${sensor.id}, this)">Update Pins in Viam</button>
+          <button class="btn-reset" onclick="resetSensorForm(this)">Clear</button>
+        </div>
+
+        <div class="status-message"></div>
+      `;
+      
+      return card;
+    }
+
+    function toggleCollapse(titleElement) {
+      const content = titleElement.nextElementSibling;
+      const icon = titleElement.querySelector('.collapse-icon');
+      
+      content.classList.toggle('open');
+      icon.classList.toggle('open');
+    }
+
+    async function saveSensorPins(sensorId, button) {
+      const card = button.closest('.sensor-card');
+      const statusMessage = card.querySelector('.status-message');
+      
+      const pinData = {
+        gpio_pin: parseInt(card.querySelector('.gpio-pin').value) || null,
+        i2c_address: card.querySelector('.i2c-address').value || null,
+        i2c_bus: parseInt(card.querySelector('.i2c-bus').value) || null,
+        spi_bus: parseInt(card.querySelector('.spi-bus').value) || null,
+        spi_device: parseInt(card.querySelector('.spi-device').value) || null,
+      };
+
+      // Remove null values
+      Object.keys(pinData).forEach(key => {
+        if (pinData[key] === null) {
+          delete pinData[key];
+        }
+      });
+
+      if (Object.keys(pinData).length === 0) {
+        showMessage(statusMessage, 'Please enter at least one pin value', 'error');
+        return;
+      }
+
+      try {
+        button.disabled = true;
+        button.textContent = 'Updating...';
+
+        const response = await fetch(`/api/sensor/${sensorId}/pins`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify(pinData)
+        });
+
+        const data = await response.json();
+
+        if (data.success) {
+          showMessage(statusMessage, 'Pins updated successfully in Viam! 🎉', 'success');
+          setTimeout(() => {
+            resetSensorForm(button);
+          }, 2000);
+        } else {
+          showMessage(statusMessage, data.error || 'Failed to update pins', 'error');
+        }
+      } catch (error) {
+        console.error('Error updating pins:', error);
+        showMessage(statusMessage, 'Error updating pins in Viam', 'error');
+      } finally {
+        button.disabled = false;
+        button.textContent = 'Update Pins in Viam';
+      }
+    }
+
+    function resetSensorForm(button) {
+      const card = button.closest('.sensor-card');
+      card.querySelector('.gpio-pin').value = '';
+      card.querySelector('.i2c-address').value = '';
+      card.querySelector('.i2c-bus').value = '';
+      card.querySelector('.spi-bus').value = '';
+      card.querySelector('.spi-device').value = '';
+      card.querySelector('.status-message').className = 'status-message';
+    }
+
+    function showMessage(element, message, type) {
+      element.textContent = message;
+      element.className = `status-message ${type}`;
+      
+      setTimeout(() => {
+        if (type === 'error') {
+          element.className = 'status-message';
+        }
+      }, 5000);
+    }
+
+  </script>
 </body>
 </html>

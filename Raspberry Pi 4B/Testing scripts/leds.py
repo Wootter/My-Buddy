@@ -2,9 +2,9 @@ import RPi.GPIO as GPIO
 import time
 
 # GPIO pin assignments
-RED = 5
-GREEN = 6
-BLUE = 12
+RED = 6
+GREEN = 5
+BLUE = 13
 
 GPIO.setmode(GPIO.BCM)
 
