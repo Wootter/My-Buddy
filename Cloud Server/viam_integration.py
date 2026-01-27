@@ -178,8 +178,8 @@ def fetch_and_store_sensor_data():
                 try:
                     readings = loop.run_until_complete(_fetch_viam_data_async(
                         robot_id=robot.id,
-                        api_key=user_robot.viam_api_key,
-                        api_key_id=user_robot.viam_api_key_id,
+                        api_key=user_robot.get_viam_api_key(),
+                        api_key_id=user_robot.get_viam_api_key_id(),
                         robot_address=robot.viam_robot_address
                     ))
                     total_readings += readings
