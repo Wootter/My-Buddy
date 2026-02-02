@@ -29,6 +29,25 @@ app = Flask(__name__,
             template_folder='templates')
 app.config.from_object(Config)
 
+# ==================== SECURITY HEADERS ====================
+@app.after_request
+def set_security_headers(response):
+    """Add security headers to all responses"""
+    response.headers['X-Content-Type-Options'] = 'nosniff'
+    response.headers['X-Frame-Options'] = 'SAMEORIGIN'
+    response.headers['X-XSS-Protection'] = '1; mode=block'
+    response.headers['Strict-Transport-Security'] = 'max-age=31536000; includeSubDomains'  # Force HTTPS for 1 year
+    response.headers['Content-Security-Policy'] = "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'"
+    return response
+
+# Redirect HTTP to HTTPS in production
+@app.before_request
+def enforce_https():
+    """Enforce HTTPS in production"""
+    if not app.debug and not request.is_secure and request.endpoint != 'static':
+        url = request.url.replace('http://', 'https://', 1)
+        return redirect(url, code=301)
+
 # Initialize DB and migrations
 db.init_app(app)
 migrate = Migrate()

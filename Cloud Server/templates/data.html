@@ -152,15 +152,9 @@
       </button>
       
       {% if sensors %}
-        <div class="stats-grid">
-          <div class="stat-card">
-            <div class="stat-value">{{ sensors|length }}</div>
-            <div class="stat-label">Total Sensors</div>
-          </div>
           {% for chart in charts %}
           <div class="stat-card">
-            <div class="stat-value">{{ chart.count }}</div>
-            <div class="stat-label">{{ chart.name }} Readings (24h)</div>
+            <div class="stat-label">{{ chart.name }}</div>
           </div>
           {% endfor %}
         </div>

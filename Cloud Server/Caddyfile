@@ -1,4 +1,4 @@
-my-buddy.tech, www.my-buddy.tech, https://my-buddy.tech, http://my-buddy.tech {
+my-buddy.tech, www.my-buddy.tech, https://my-buddy.tech, http://my-buddy.tech, localhost, 127.0.0.1 {
     handle /static/* {
         root /root/My-Buddy/Cloud\ Server
         file_server
