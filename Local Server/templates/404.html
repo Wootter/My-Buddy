@@ -1,0 +1,122 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+  <script>
+    // Apply theme immediately to prevent flash
+    (function() {
+      if (localStorage.getItem('lightmode') === 'active') {
+        document.documentElement.classList.add('lightmode');
+        // Also add to body when it becomes available
+        if (document.body) {
+          document.body.classList.add('lightmode');
+        } else {
+          document.addEventListener('DOMContentLoaded', function() {
+            document.body.classList.add('lightmode');
+          });
+        }
+      }
+    })();
+  </script>
+  <script type="text/javascript" src="{{ url_for('static', filename='js/app.js') }}" defer></script>
+  <title>404 - Page Not Found</title>
+  <style>
+    .error-container {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      min-height: 100vh;
+      background-color: var(--base-clr);
+      padding: 2em;
+      text-align: center;
+    }
+    
+    .error-code {
+      font-size: 120px;
+      font-weight: 900;
+      background: linear-gradient(135deg, var(--accent-clr), #7c85ff);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+      margin: 0;
+      line-height: 1;
+    }
+    
+    .error-title {
+      font-size: 42px;
+      color: var(--text-clr);
+      margin: 20px 0 10px 0;
+      font-weight: 700;
+    }
+    
+    .error-message {
+      font-size: 18px;
+      color: var(--secondary-text-clr);
+      margin-bottom: 40px;
+      max-width: 500px;
+    }
+    
+    .error-icon {
+      font-size: 80px;
+      margin-bottom: 20px;
+      opacity: 0.8;
+    }
+    
+    .error-buttons {
+      display: flex;
+      gap: 15px;
+      justify-content: center;
+      flex-wrap: wrap;
+    }
+    
+    .error-btn {
+      padding: 12px 30px;
+      font-size: 16px;
+      font-weight: 600;
+      border: none;
+      border-radius: 8px;
+      cursor: pointer;
+      transition: all 300ms ease;
+      text-decoration: none;
+      display: inline-block;
+    }
+    
+    .error-btn-primary {
+      background: linear-gradient(135deg, var(--accent-clr), #7c85ff);
+      color: white;
+      box-shadow: 0 8px 25px rgba(94, 99, 255, 0.3);
+    }
+    
+    .error-btn-primary:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 12px 35px rgba(94, 99, 255, 0.4);
+    }
+    
+    .error-btn-secondary {
+      background-color: var(--hover-clr);
+      color: var(--text-clr);
+    }
+    
+    .error-btn-secondary:hover {
+      background-color: var(--line-clr);
+    }
+  </style>
+</head>
+<body>
+  <div class="error-container">
+    <div class="error-icon">🚀</div>
+    <h1 class="error-code">404</h1>
+    <h2 class="error-title">Page Not Found</h2>
+    <p class="error-message">
+      Sorry, the page you're looking for doesn't exist or has been moved. Let's get you back on track!
+    </p>
+    <div class="error-buttons">
+      <a href="/" class="error-btn error-btn-primary">Go Home</a>
+      <a href="javascript:history.back()" class="error-btn error-btn-secondary">Go Back</a>
+    </div>
+  </div>
+</body>
+</html>
