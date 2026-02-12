@@ -784,6 +784,12 @@
           body: JSON.stringify(formData)
         });
         
+        // Handle non-JSON responses (like 500 HTML errors)
+        const contentType = response.headers.get("content-type");
+        if (!contentType || !contentType.includes("application/json")) {
+           throw new Error(`Server returned ${response.status}: ${response.statusText}`);
+        }
+
         const data = await response.json();
         
         if (data.success) {
@@ -800,7 +806,8 @@
           messageEl.style.display = 'block';
         }
       } catch (error) {
-        messageEl.textContent = 'Error adding device';
+        console.error('Submit error:', error);
+        messageEl.textContent = error.message || 'Error adding device (Check console)';
         messageEl.className = 'modal-message error';
         messageEl.style.display = 'block';
       }
