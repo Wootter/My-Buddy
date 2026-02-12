@@ -8,6 +8,11 @@ from datetime import datetime
 from extensions import db, socketio
 from models import SensorData, Sensor, Robot
 import logging
+import traceback
+import nest_asyncio
+
+# Apply nest_asyncio to allow nested event loops
+nest_asyncio.apply()
 
 logger = logging.getLogger(__name__)
 
@@ -188,6 +193,7 @@ def fetch_and_store_sensor_data():
                     
             except Exception as e:
                 logger.error(f"Failed to fetch data for {robot.robot_name}: {e}")
+                logger.error(traceback.format_exc())
                 db.session.rollback()
         
         if total_readings > 0:
