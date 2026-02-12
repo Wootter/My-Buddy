@@ -10,6 +10,7 @@ from models import SensorData, Sensor, Robot
 import logging
 import traceback
 import nest_asyncio
+from cryptography.fernet import InvalidToken
 
 # Apply nest_asyncio to allow nested event loops
 nest_asyncio.apply()
@@ -190,7 +191,11 @@ def fetch_and_store_sensor_data():
                     total_readings += readings
                 finally:
                     loop.close()
-                    
+            
+            except InvalidToken:
+                logger.error(f"Failed to decrypt credentials for robot: {robot.robot_name}")
+                logger.error("Encryption key mismatch. Please re-enter robot credentials in the web interface.")
+                
             except Exception as e:
                 logger.error(f"Failed to fetch data for {robot.robot_name}: {e}")
                 logger.error(traceback.format_exc())
