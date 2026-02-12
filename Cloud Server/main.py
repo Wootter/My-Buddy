@@ -671,12 +671,12 @@ def add_device():
         db.session.add(robot)
         db.session.flush()  # Get the robot ID
     
-    # Create user-robot connection
-    user_robot = UserRobot(
+    # Create user-robot connection calling the encrypted constructor
+    user_robot = UserRobot.create_encrypted(
         account_id=account_id,
         robot_id=robot.id,
-        viam_api_key=data['viam_api_key'],
-        viam_api_key_id=data['viam_api_key_id']
+        api_key=data['viam_api_key'],
+        api_key_id=data['viam_api_key_id']
     )
     
     try:
