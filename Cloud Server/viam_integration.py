@@ -5,7 +5,7 @@ Handles fetching sensor data from Viam robot and storing in database.
 """
 
 from datetime import datetime
-from extensions import db
+from extensions import db, socketio
 from models import SensorData, Sensor, Robot
 import logging
 
@@ -189,6 +189,10 @@ def fetch_and_store_sensor_data():
             except Exception as e:
                 logger.error(f"Failed to fetch data for {robot.robot_name}: {e}")
                 db.session.rollback()
+        
+        if total_readings > 0:
+            logger.info("Emitting update_sensor_data event")
+            socketio.emit('update_sensor_data', {'message': 'New sensor data available'})
         
         return total_readings > 0
         

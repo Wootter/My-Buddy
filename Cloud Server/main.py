@@ -11,7 +11,7 @@ Description: Flask app with SQLAlchemy models and example API endpoints.
 from flask import Flask, render_template, request, jsonify, redirect, url_for, session, flash
 from functools import wraps
 from config import Config
-from extensions import db
+from extensions import db, socketio
 from flask_migrate import Migrate
 from datetime import datetime, timedelta
 from apscheduler.schedulers.background import BackgroundScheduler
@@ -50,6 +50,7 @@ def enforce_https():
 
 # Initialize DB and migrations
 db.init_app(app)
+socketio.init_app(app, cors_allowed_origins="*")
 migrate = Migrate()
 migrate.init_app(app, db)
 
@@ -284,6 +285,33 @@ def data():
             })
     
     return render_template('data.html', sensors=sensors, charts=sensor_charts)
+
+
+@app.route('/api/latest-readings')
+@login_required
+def latest_readings():
+    from models import Sensor, SensorData, UserRobot
+    
+    account_id = session['user_id']
+    user_robots = UserRobot.query.filter_by(account_id=account_id).all()
+    robot_ids = [ur.robot_id for ur in user_robots]
+    
+    if not robot_ids:
+        return jsonify({'success': True, 'readings': {}})
+    
+    sensors = Sensor.query.filter(Sensor.robot_id.in_(robot_ids)).all()
+    readings_data = {}
+    
+    for sensor in sensors:
+        latest = SensorData.query.filter_by(sensor_id=sensor.id).order_by(SensorData.timestamp.desc()).first()
+        if latest:
+            readings_data[sensor.name] = {
+                'value': latest.value,
+                'unit': latest.unit,
+                'timestamp': latest.timestamp.isoformat()
+            }
+            
+    return jsonify({'success': True, 'readings': readings_data})
 
 
 @app.route('/configure')
@@ -826,5 +854,5 @@ def update_sensor_pins(sensor_id):
 
 
 if __name__ == '__main__':
-    app.run(debug=True, port=5000, host='0.0.0.0')
+    socketio.run(app, debug=True, port=5000, host='0.0.0.0')
 

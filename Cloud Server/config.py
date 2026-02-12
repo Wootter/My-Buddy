@@ -1,8 +1,9 @@
 import os
 
 class Config:
-    # For local development use a SQLite DB file in the project root.
-    SQLALCHEMY_DATABASE_URI = 'sqlite:///mybuddy.db'
+    # For local development use a SQLite DB file in the project root if no env var is set.
+    # To connect to remote DB, set SQLAlchemy_DATABASE_URI in env variables.
+    SQLALCHEMY_DATABASE_URI = os.environ.get('SQLALCHEMY_DATABASE_URI') or 'sqlite:///mybuddy.db'
     SQLALCHEMY_TRACK_MODIFICATIONS = False
     
     # Secret key for sessions - loaded from environment variable
