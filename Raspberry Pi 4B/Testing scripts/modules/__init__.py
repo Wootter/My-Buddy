@@ -1,0 +1,1 @@
+"""My Buddy modules package"""
