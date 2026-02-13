@@ -27,12 +27,20 @@
     let robotConnected = false;
     let updateInterval = null;
     let charts = {};
+    let socket = null;
+    let inactivityTimeout = null;
+    const INACTIVITY_TIMEOUT = 5 * 60 * 1000; // 5 minutes
 
     document.addEventListener('DOMContentLoaded', () => {
-      const socket = io();
+      // Initialize Socket.IO
+      socket = io();
       
       socket.on('connect', () => {
-        console.log('Connected to server');
+        console.log('✓ Socket.IO Connected to server');
+      });
+      
+      socket.on('disconnect', () => {
+        console.log('✗ Socket.IO Disconnected from server');
       });
       
       // Listen for LIVE sensor data updates (every 5 seconds)
@@ -40,6 +48,7 @@
         if (data.success && data.readings) {
           console.log('Live sensor data received:', Object.keys(data.readings).length, 'sensors');
           updateLiveSensorDisplay(data.readings);
+          resetInactivityTimer(); // Reset inactivity timer on data update
         }
       });
       
@@ -94,6 +103,43 @@
       
       // Check status every 30 seconds
       setInterval(checkRobotStatus, 30000);
+
+      // ==================== PAGE VISIBILITY & INACTIVITY HANDLING ====================
+      
+      // Detect when user switches tabs or windows
+      document.addEventListener('visibilitychange', () => {
+        if (document.hidden) {
+          console.log('Page hidden - disconnecting Socket.IO');
+          if (socket) socket.disconnect();
+        } else {
+          console.log('Page visible - reconnecting Socket.IO');
+          if (socket) socket.connect();
+        }
+      });
+
+      // Detect when user leaves the page (navigates away)
+      window.addEventListener('beforeunload', () => {
+        console.log('User leaving page - disconnecting Socket.IO');
+        if (socket) socket.disconnect();
+      });
+
+      // Inactivity detection - disconnect after 5 minutes of no activity
+      function resetInactivityTimer() {
+        if (inactivityTimeout) clearTimeout(inactivityTimeout);
+        inactivityTimeout = setTimeout(() => {
+          console.log('Inactivity timeout - disconnecting Socket.IO');
+          if (socket) socket.disconnect();
+        }, INACTIVITY_TIMEOUT);
+      }
+
+      // Reset timer on user activity (mouse/keyboard)
+      document.addEventListener('mousemove', resetInactivityTimer);
+      document.addEventListener('keypress', resetInactivityTimer);
+      document.addEventListener('click', resetInactivityTimer);
+      document.addEventListener('scroll', resetInactivityTimer);
+
+      // Initial inactivity timer
+      resetInactivityTimer();
 
       // Store updateDashboard globally for other use
       window.updateDashboard = function() {
