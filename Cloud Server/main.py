@@ -71,10 +71,10 @@ def scheduled_viam_live_fetch():
         if live_data:
             logger.debug(f"✓ Live sensor data fetched: {len(live_data)} sensors")
             # Emit live data to all connected clients via Socket.IO
-            socketio.emit('live_sensor_data', {
+            socketio.server.emit('live_sensor_data', {
                 'success': True,
                 'readings': live_data
-            }, broadcast=True)
+            }, namespace='/')
 
 
 def scheduled_viam_fetch():
@@ -104,14 +104,6 @@ scheduler.add_job(
     trigger=CronTrigger(minute=0),
     id='viam_sensor_fetch_hourly',
     name='Fetch Viam sensor data (save to database)',
-    replace_existing=True
-)
-
-# Fetch data immediately on startup for initial graph population
-scheduler.add_job(
-    func=scheduled_viam_fetch,
-    id='viam_startup_fetch',
-    name='Initial Viam sensor data fetch',
     replace_existing=True
 )
 
