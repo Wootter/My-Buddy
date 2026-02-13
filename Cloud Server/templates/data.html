@@ -73,16 +73,13 @@
               el.appendChild(unitSpan);
             }
             
-            // Subtle background color fade on stat card when updated
+            // Subtle border pulse on stat card when updated (ease-in-out fade in and out)
             const statCard = el.closest('.stat-card');
             if (statCard) {
-              // Get current background color
-              const originalBg = statCard.style.backgroundColor || 'rgba(255, 255, 255, 0.05)';
-              // Light green fade for success indicator
-              statCard.style.backgroundColor = 'rgba(148, 205, 145, 0.2)';
-              setTimeout(() => {
-                statCard.style.backgroundColor = originalBg;
-              }, 800);
+              // Remove and re-add class to restart animation
+              statCard.classList.remove('updating');
+              void statCard.offsetHeight; // Force reflow to restart animation
+              statCard.classList.add('updating');
             }
           }
         }
