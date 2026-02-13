@@ -73,13 +73,16 @@
               el.appendChild(unitSpan);
             }
             
-            // Flash animation on stat card border
+            // Subtle background color fade on stat card when updated
             const statCard = el.closest('.stat-card');
             if (statCard) {
-              statCard.style.borderColor = '#94cd91';
+              // Get current background color
+              const originalBg = statCard.style.backgroundColor || 'rgba(255, 255, 255, 0.05)';
+              // Light green fade for success indicator
+              statCard.style.backgroundColor = 'rgba(148, 205, 145, 0.2)';
               setTimeout(() => {
-                statCard.style.borderColor = 'transparent';
-              }, 100);
+                statCard.style.backgroundColor = originalBg;
+              }, 800);
             }
           }
         }
@@ -399,7 +402,8 @@
                           data: values,
                           borderColor: color,
                           backgroundColor: color.replace('rgb', 'rgba').replace(')', ', 0.2)'),
-                          tension: 0.3,
+                          tension: isMotionSensor ? 0 : 0.3,
+                          stepped: isMotionSensor ? 'middle' : false,
                           fill: true,
                           spanGaps: true,
                           pointRadius: 4,
