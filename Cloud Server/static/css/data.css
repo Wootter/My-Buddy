@@ -47,9 +47,9 @@
 
 .chart-container {
   position: relative;
-  height: 280px;
+  height: 360px;
   margin: 30px 0;
-  padding: 15px;
+  padding: 20px 15px 60px 15px;
   background: rgba(255, 255, 255, 0.05);
   border-radius: 10px;
   overflow: hidden;
@@ -62,6 +62,7 @@
 .chart-container canvas {
   flex: 1;
   min-height: 0;
+  max-width: 100%;
 }
 
 /* Hide vertical scrollbars but keep horizontal */

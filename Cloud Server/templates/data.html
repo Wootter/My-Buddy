@@ -459,6 +459,11 @@
                           mode: 'index',
                           intersect: false
                         },
+                        layout: {
+                          padding: {
+                            bottom: 50
+                          }
+                        },
                         plugins: {
                           legend: {
                             display: true,
@@ -486,10 +491,13 @@
                             display: true,
                             ticks: {
                               color: themeColors.textColor,
-                              maxTicksLimit: isMobile ? 6 : 25,
+                              maxTicksLimit: isMobile ? 6 : 10,
                               autoSkip: true,
-                              maxRotation: 45,
-                              minRotation: 0
+                              maxRotation: -45,
+                              minRotation: -45,
+                              font: {
+                                size: 11
+                              }
                             },
                             grid: {
                               color: themeColors.gridColor,
