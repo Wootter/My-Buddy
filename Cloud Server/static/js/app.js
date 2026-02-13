@@ -8,21 +8,27 @@ const eyeClose = document.getElementById('eye-closed')
 const themeSwitch = document.getElementById('theme-switch')
 
 const enableLightmode = () => {
+  document.documentElement.classList.add('lightmode')
   document.body.classList.add('lightmode')
   localStorage.setItem('lightmode', 'active')
 }
 
 const disableLightmode = () => {
+  document.documentElement.classList.remove('lightmode')
   document.body.classList.remove('lightmode')
   localStorage.setItem('lightmode', null)
 }
 
+// Apply theme on page load
 if(lightmode === 'active') enableLightmode()
 
-themeSwitch.addEventListener('click', () => {
-  lightmode = localStorage.getItem('lightmode')
-  lightmode !== 'active' ? enableLightmode() : disableLightmode()
-})
+// Theme switch event listener - check actual DOM state, not cached value
+if(themeSwitch) {
+  themeSwitch.addEventListener('click', () => {
+    const isCurrentlyLight = document.body.classList.contains('lightmode')
+    isCurrentlyLight ? disableLightmode() : enableLightmode()
+  })
+}
 
 function toggleSidebar(){
   sidebar.classList.toggle('close')

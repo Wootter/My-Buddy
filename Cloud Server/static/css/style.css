@@ -20,6 +20,7 @@
 *{
   margin: 0;
   padding: 0;
+  transition: background-color 300ms ease-in-out, color 300ms ease-in-out, border-color 300ms ease-in-out;
 }
 html{
   font-family: Poppins, 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
@@ -32,6 +33,7 @@ body{
   color: var(--text-clr);
   display: grid;
   grid-template-columns: auto 1fr;
+  transition: background-color 300ms ease-in-out, color 300ms ease-in-out;
 }
 #sidebar{
   box-sizing: border-box;
@@ -194,6 +196,7 @@ body{
 }
 main{
   padding: min(30px, 7%);
+  transition: background-color 300ms ease-in-out, color 300ms ease-in-out;
 }
 main p{
   color: var(--secondary-text-clr);
@@ -205,6 +208,7 @@ main p{
   border-radius: 1em;
   margin-bottom: 20px;
   padding: min(3em, 15%);
+  transition: background-color 300ms ease-in-out, color 300ms ease-in-out, border-color 300ms ease-in-out;
 
   h2, p { margin-top: 1em }
 }
@@ -222,6 +226,7 @@ main p{
   padding: 2em;
   background-color: var(--base-clr);
   z-index: 1000;
+  transition: background-color 300ms ease-in-out, color 300ms ease-in-out, border-color 300ms ease-in-out;
   > form {
     width: 100%;
   }
@@ -232,6 +237,7 @@ main p{
     margin: 30px 0;
     background-color: var(--base-clr);
     position: relative;
+    transition: background-color 300ms ease-in-out;
   }
   > h1 {
     text-align: center;
