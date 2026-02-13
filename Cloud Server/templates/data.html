@@ -79,7 +79,7 @@
               statCard.style.borderColor = '#94cd91';
               setTimeout(() => {
                 statCard.style.borderColor = 'transparent';
-              }, 1000);
+              }, 100);
             }
           }
         }
@@ -178,7 +178,7 @@
       border-radius: 10px;
       text-align: center;
       border: 2px solid transparent;
-      transition: border-color 0.01s ease-in-out;
+      transition: border-color 0.3s ease-in-out;
     }
     .stat-value {
       font-size: 2em;
@@ -458,8 +458,11 @@
                             max: yMax,
                             ticks: {
                               color: '#e8eaed',
+                              stepSize: isMotionSensor ? 1 : undefined,
                               callback: isMotionSensor ? function(value) {
-                                return yFormatter(value);
+                                if (value === 0) return 'no movement';
+                                if (value === 1) return 'movement';
+                                return '';
                               } : undefined
                             },
                             grid: {
