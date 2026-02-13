@@ -421,18 +421,21 @@ form > .remember-forgot {
 @keyframes borderPulse {
   0% {
     border-color: var(--line-clr);
+    box-shadow: 0 0 0 0 rgba(148, 205, 145, 0);
   }
   50% {
     border-color: #94cd91;
+    box-shadow: 0 0 12px 2px rgba(148, 205, 145, 0.6);
   }
   100% {
     border-color: var(--line-clr);
+    box-shadow: 0 0 0 0 rgba(148, 205, 145, 0);
   }
 }
 
 .stat-card {
   background-color: var(--hover-clr);
-  border: 1px solid var(--line-clr);
+  border: 2px solid var(--line-clr);
   border-radius: 12px;
   padding: 20px;
   display: flex;
@@ -442,7 +445,7 @@ form > .remember-forgot {
 }
 
 .stat-card.updating {
-  animation: borderPulse 0.6s ease-in-out forwards;
+  animation: borderPulse 0.8s ease-in-out forwards;
 }
 
 .stat-card:hover {
