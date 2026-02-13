@@ -53,7 +53,33 @@
   background: rgba(255, 255, 255, 0.05);
   border-radius: 10px;
   overflow-x: auto;
+  overflow-y: hidden;
   max-width: 100%;
+}
+
+/* Hide vertical scrollbars but keep horizontal */
+.chart-container::-webkit-scrollbar {
+  height: 8px;
+  width: 0px;
+}
+
+.chart-container::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.chart-container::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.2);
+  border-radius: 4px;
+}
+
+.chart-container::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.3);
+}
+
+/* Firefox scrollbar */
+.chart-container {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(255, 255, 255, 0.2) transparent;
 }
 
 .stat-card {

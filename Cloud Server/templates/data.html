@@ -409,22 +409,37 @@
                     const color = colors[index % colors.length];
                     const themeColors = getThemeColors();
                     
-                    // ==================== SCROLLABLE CHARTS ====================
+                    // ==================== SCROLLABLE CHARTS - RESPONSIVE FOR MOBILE ====================
                     // Calculate max data points for readability based on screen width
                     const maxDataPoints = window.calculateMaxDataPoints();
                     const totalDataPoints = sortedTimestamps.length;
                     const chartContainer = document.getElementById(chartId).parentElement;
+                    const pointWidth = 60; // pixels per data point for readability
+                    const isMobile = window.innerWidth < 768;
                     
-                    // If data exceeds max points, set canvas width for horizontal scroll
-                    if (totalDataPoints > maxDataPoints) {
-                      const pointWidth = 60; // pixels per data point for readability
-                      const calculatedWidth = totalDataPoints * pointWidth;
-                      canvasEl.width = calculatedWidth;
-                      canvasEl.height = 200;
+                    // PRE-CALCULATE canvas dimensions BEFORE creating chart
+                    let finalCanvasWidth = 400; // default width (responsive container)
+                    let finalCanvasHeight = 200;
+                    
+                    if (totalDataPoints > maxDataPoints && !isMobile) {
+                      // DESKTOP ONLY: Calculate exact width needed for all data points with scrolling
+                      finalCanvasWidth = totalDataPoints * pointWidth;
+                      canvasEl.width = finalCanvasWidth;
+                      canvasEl.height = finalCanvasHeight;
+                      console.log(`✓ Chart for ${sensor.name} is scrollable (${totalDataPoints} points > ${maxDataPoints} max, width: ${finalCanvasWidth}px)`);
+                    } else if (totalDataPoints > maxDataPoints && isMobile) {
+                      // MOBILE: Keep responsive, compress data point spacing
+                      // Let Chart.js handle responsive scaling, don't set width
                       chartContainer.style.overflow = 'auto';
-                      console.log(`✓ Chart for ${sensor.name} is scrollable (${totalDataPoints} points > ${maxDataPoints} max)`);
+                      console.log(`✓ Chart for ${sensor.name} is responsive on mobile (${totalDataPoints} points, compressed display)`);
                     } else {
-                      chartContainer.style.overflow = 'hidden';
+                      // FITS ON SCREEN: Let it be responsive
+                      console.log(`✓ Chart for ${sensor.name} fits on screen (${totalDataPoints} points <= ${maxDataPoints} max)`);
+                    }
+                    
+                    // Only set height, let Chart.js handle width responsiveness on mobile
+                    if (isMobile && totalDataPoints <= maxDataPoints) {
+                      canvasEl.height = finalCanvasHeight;
                     }
                     
                     const chart = new Chart(ctx, {
