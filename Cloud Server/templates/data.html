@@ -413,22 +413,14 @@
                     
                     // ==================== SCROLLABLE CHARTS - FIXED POINT SPACING ====================
                     const totalDataPoints = sortedTimestamps.length;
-                    const chartWrapper = document.getElementById(`wrapper-${index + 1}`);
-                    const pointWidth = 60; // pixels per data point - fixed spacing
+                    const pointWidth = 60; // pixels per data point - fixed spacing, never compress
                     
-                    // Calculate the needed width for all points with proper spacing
-                    const neededWidth = totalDataPoints * pointWidth;
-                    const availableWidth = chartWrapper.clientWidth - 30; // subtract padding
+                    // Always calculate canvas width with fixed point spacing
+                    const finalCanvasWidth = totalDataPoints * pointWidth;
+                    canvasEl.width = finalCanvasWidth;
+                    canvasEl.height = 250;
                     
-                    // If data needs more space than available, freeze and enable scrolling
-                    if (neededWidth > availableWidth) {
-                      canvasEl.width = neededWidth;
-                      canvasEl.height = 250;
-                      console.log(`✓ Chart for ${sensor.name} is scrollable (needs ${neededWidth}px, has ${availableWidth}px)`);
-                    } else {
-                      // Fits in available space - stay responsive
-                      console.log(`✓ Chart for ${sensor.name} fits (needs ${neededWidth}px, has ${availableWidth}px)`);
-                    }
+                    console.log(`✓ Chart for ${sensor.name} has fixed spacing (${totalDataPoints} points × ${pointWidth}px = ${finalCanvasWidth}px)`);
                     
                     const chart = new Chart(ctx, {
                       type: 'line',
@@ -449,7 +441,7 @@
                         }]
                       },
                       options: {
-                        responsive: true,
+                        responsive: false,
                         maintainAspectRatio: false,
                         animation: {
                           duration: 500
