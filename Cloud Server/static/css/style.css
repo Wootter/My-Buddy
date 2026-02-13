@@ -791,6 +791,11 @@ form > .remember-forgot {
     position: fixed;
     top: unset;
     bottom: 0;
+    z-index: 999;
+  }
+
+  main {
+    padding-bottom: 80px;
   }
 
   #sidebar > ul{
@@ -799,7 +804,8 @@ form > .remember-forgot {
     grid-auto-columns: 60px;
     grid-auto-flow: column;
     align-items: center;
-    overflow-x: scroll;
+    overflow-x: auto;
+    overflow-y: hidden;
   }
 
   #sidebar ul li{

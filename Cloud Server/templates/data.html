@@ -143,6 +143,44 @@
       window.updateDashboard = function() {
         console.log('Dashboard auto-refresh disabled - using live Socket.IO updates instead');
       };
+
+      // ==================== RESPONSIVE STATS GRID ====================
+      // Balance stat cards to avoid odd last items on a row
+      function balanceStatsGrid() {
+        const statsGrid = document.querySelector('.stats-grid');
+        if (!statsGrid) return;
+        
+        const cards = statsGrid.querySelectorAll('.stat-card');
+        const count = cards.length;
+        const screenWidth = window.innerWidth;
+        
+        // Determine base columns based on screen size
+        let baseColumns;
+        if (screenWidth < 480) baseColumns = 1;
+        else if (screenWidth < 768) baseColumns = 2;
+        else if (screenWidth < 1024) baseColumns = 3;
+        else baseColumns = 4;
+        
+        // Adjust columns to avoid odd distribution
+        if (count % baseColumns === 1 && baseColumns > 1) {
+          statsGrid.style.gridTemplateColumns = `repeat(${baseColumns - 1}, 1fr)`;
+        } else if (count % baseColumns === 1 && baseColumns === 1) {
+          statsGrid.style.gridTemplateColumns = '1fr';
+        }
+      }
+
+      balanceStatsGrid();
+      window.addEventListener('resize', balanceStatsGrid);
+
+      // ==================== SCROLLABLE CHARTS BASED ON DATA POINTS ====================
+      // Formula: max_points = Math.max(12, Math.floor((width / 50)))
+      // This ensures readability on any screen size
+      window.calculateMaxDataPoints = function() {
+        const width = window.innerWidth;
+        // For smaller screens, show fewer points; for larger screens, show more
+        // Formula: 12 points for mobile, scales up to ~50 for desktop
+        return Math.max(12, Math.floor((width / 40)));
+      }
     });
   </script>
   <title>My Buddy - Sensor Data</title>
@@ -370,6 +408,24 @@
                     const colors = ['rgb(75, 192, 192)', 'rgb(255, 159, 64)', 'rgb(255, 99, 132)', 'rgb(54, 162, 235)', 'rgb(153, 102, 255)'];
                     const color = colors[index % colors.length];
                     const themeColors = getThemeColors();
+                    
+                    // ==================== SCROLLABLE CHARTS ====================
+                    // Calculate max data points for readability based on screen width
+                    const maxDataPoints = window.calculateMaxDataPoints();
+                    const totalDataPoints = sortedTimestamps.length;
+                    const chartContainer = document.getElementById(chartId).parentElement;
+                    
+                    // If data exceeds max points, set canvas width for horizontal scroll
+                    if (totalDataPoints > maxDataPoints) {
+                      const pointWidth = 60; // pixels per data point for readability
+                      const calculatedWidth = totalDataPoints * pointWidth;
+                      canvasEl.width = calculatedWidth;
+                      canvasEl.height = 200;
+                      chartContainer.style.overflow = 'auto';
+                      console.log(`✓ Chart for ${sensor.name} is scrollable (${totalDataPoints} points > ${maxDataPoints} max)`);
+                    } else {
+                      chartContainer.style.overflow = 'hidden';
+                    }
                     
                     const chart = new Chart(ctx, {
                       type: 'line',
