@@ -413,14 +413,15 @@
                     
                     // ==================== SCROLLABLE CHARTS - PROPER CSS METHOD ====================
                     const totalDataPoints = sortedTimestamps.length;
-                    const pointWidth = 60; // pixels per data point for readability
+                    const isMobile = window.innerWidth < 768;
+                    const pointWidth = isMobile ? 30 : 60; // 30px on mobile, 60px on desktop for readability
                     
-                    // Always set explicit dimensions with fixed point spacing
+                    // Always set explicit dimensions with adaptive point spacing
                     const finalCanvasWidth = totalDataPoints * pointWidth;
                     canvasEl.width = finalCanvasWidth;
                     canvasEl.height = 250;
                     
-                    console.log(`✓ Chart for ${sensor.name} has fixed spacing (${totalDataPoints} points, width: ${finalCanvasWidth}px)`);
+                    console.log(`✓ Chart for ${sensor.name} has ${isMobile ? 'mobile' : 'desktop'} spacing (${totalDataPoints} points × ${pointWidth}px = ${finalCanvasWidth}px)`);
                     
                     const chart = new Chart(ctx, {
                       type: 'line',
