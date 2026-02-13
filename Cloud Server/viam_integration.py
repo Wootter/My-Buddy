@@ -149,6 +149,10 @@ async def _fetch_viam_data_async(robot_id, api_key, api_key_id, robot_address):
     return readings_saved
 
 
+# ==================== VIAM CONNECTION POOL (LIVE DATA) ====================
+# Cache robot connections to avoid reconnecting every 5 seconds
+_robot_connections = {}
+
 async def _fetch_viam_data_async_live(robot_id, api_key, api_key_id, robot_address):
     """Async function to fetch LIVE data from Viam robot (without saving to database)."""
     from viam.robot.client import RobotClient
@@ -156,53 +160,69 @@ async def _fetch_viam_data_async_live(robot_id, api_key, api_key_id, robot_addre
     
     logger.debug(f"[LIVE] Fetching sensor data from Viam...")
     
-    # Connect to Viam robot
-    opts = RobotClient.Options.with_api_key(
-        api_key=api_key,
-        api_key_id=api_key_id
-    )
-    robot = await RobotClient.at_address(robot_address, opts)
+    # Reuse existing connection if available, otherwise create new one
+    cache_key = robot_id
+    if cache_key not in _robot_connections or not _robot_connections[cache_key]:
+        logger.debug(f"[LIVE] Creating new robot connection for robot {robot_id}")
+        opts = RobotClient.Options.with_api_key(
+            api_key=api_key,
+            api_key_id=api_key_id
+        )
+        robot = await RobotClient.at_address(robot_address, opts)
+        _robot_connections[cache_key] = robot
+    else:
+        logger.debug(f"[LIVE] Reusing cached robot connection for robot {robot_id}")
+        robot = _robot_connections[cache_key]
     
     timestamp = datetime.utcnow()
     live_readings = {}
     
     try:
-        # Fetch data from each sensor
-        for sensor_config in VIAM_SENSORS:
+        # Fetch data from all sensors concurrently
+        async def fetch_sensor(sensor_config):
             try:
-                try:
-                    viam_sensor = ViamSensor.from_robot(robot, sensor_config['viam_name'])
-                    sensor_readings = await viam_sensor.get_readings()
+                from viam.components.sensor import Sensor as ViamSensor
+                viam_sensor = ViamSensor.from_robot(robot, sensor_config['viam_name'])
+                sensor_readings = await viam_sensor.get_readings()
+                
+                reading_key = sensor_config['reading_key']
+                if reading_key in sensor_readings:
+                    value = sensor_readings[reading_key]
                     
-                    reading_key = sensor_config['reading_key']
-                    if reading_key in sensor_readings:
-                        value = sensor_readings[reading_key]
-                        
-                        # Convert boolean to float for display
-                        if isinstance(value, bool):
-                            value = 1.0 if value else 0.0
-                        else:
-                            value = float(value)
-                        
-                        # Store in live_readings dict (NOT in database)
-                        live_readings[sensor_config['sensor_name']] = {
-                            'value': value,
-                            'unit': sensor_config['unit'],
-                            'timestamp': timestamp.isoformat()
-                        }
-                        
-                        logger.debug(f"  [LIVE] {sensor_config['sensor_name']}: {value} {sensor_config['unit']}")
+                    # Convert boolean to float for display
+                    if isinstance(value, bool):
+                        value = 1.0 if value else 0.0
                     else:
-                        logger.debug(f"  [LIVE] {sensor_config['sensor_name']}: Key '{reading_key}' not found")
-                        
-                except Exception as sensor_error:
-                    logger.debug(f"  [LIVE] {sensor_config['sensor_name']}: {type(sensor_error).__name__}")
+                        value = float(value)
+                    
+                    logger.debug(f"  [LIVE] {sensor_config['sensor_name']}: {value} {sensor_config['unit']}")
+                    return (sensor_config['sensor_name'], {
+                        'value': value,
+                        'unit': sensor_config['unit'],
+                        'timestamp': timestamp.isoformat()
+                    })
+                else:
+                    logger.debug(f"  [LIVE] {sensor_config['sensor_name']}: Key '{reading_key}' not found")
+                    return None
                     
             except Exception as e:
                 logger.debug(f"  [LIVE] {sensor_config['sensor_name']}: {e}")
+                return None
         
-    finally:
-        await robot.close()
+        # Fetch all sensors in parallel
+        import asyncio
+        tasks = [fetch_sensor(sensor) for sensor in VIAM_SENSORS]
+        results = await asyncio.gather(*tasks)
+        
+        # Build live_readings dict from results
+        for result in results:
+            if result:
+                live_readings[result[0]] = result[1]
+        
+    except Exception as e:
+        logger.error(f"[LIVE] Error fetching data: {e}")
+        # Clear cached connection on error
+        _robot_connections[cache_key] = None
     
     return live_readings
 
