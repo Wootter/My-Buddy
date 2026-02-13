@@ -38,7 +38,7 @@ def set_security_headers(response):
     response.headers['X-Frame-Options'] = 'SAMEORIGIN'
     response.headers['X-XSS-Protection'] = '1; mode=block'
     response.headers['Strict-Transport-Security'] = 'max-age=31536000; includeSubDomains'  # Force HTTPS for 1 year
-    response.headers['Content-Security-Policy'] = "default-src 'self'; script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://cdn.socket.io; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; connect-src 'self' wss: ws:"
+    response.headers['Content-Security-Policy'] = "default-src 'self'; script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://cdn.socket.io; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com https://fonts.googleapis.com; connect-src 'self' wss: ws: https://cdn.socket.io"
     return response
 
 # Redirect HTTP to HTTPS in production
@@ -95,7 +95,9 @@ scheduler.add_job(
     trigger=IntervalTrigger(seconds=5),
     id='viam_live_fetch',
     name='Fetch LIVE Viam sensor data (broadcast via Socket.IO)',
-    replace_existing=True
+    replace_existing=True,
+    coalesce=True,
+    max_instances=1
 )
 
 # Schedule database-saving fetch every hour at xx:00 (0 minutes past the hour)
