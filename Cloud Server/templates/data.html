@@ -414,22 +414,18 @@
                     // ==================== SCROLLABLE CHARTS - PROPER CSS METHOD ====================
                     const maxDataPoints = window.calculateMaxDataPoints();
                     const totalDataPoints = sortedTimestamps.length;
-                    const wrapperIndex = index + 1;
-                    const chartWrapper = document.getElementById(`wrapper-${wrapperIndex}`);
                     const pointWidth = 60; // pixels per data point for readability
                     const isMobile = window.innerWidth < 768;
                     
-                    // Set canvas and wrapper dimensions
+                    // Set canvas dimensions (wrapper stays at 100% for individual scrolling)
                     if (totalDataPoints > maxDataPoints && !isMobile) {
-                      // DESKTOP: Set explicit width for scrollable canvas
+                      // DESKTOP: Set explicit canvas width for internal scrolling within wrapper
                       const finalCanvasWidth = totalDataPoints * pointWidth;
-                      chartWrapper.style.width = finalCanvasWidth + 'px';
                       canvasEl.width = finalCanvasWidth;
                       canvasEl.height = 250;
                       console.log(`✓ Chart for ${sensor.name} is scrollable (${totalDataPoints} points, width: ${finalCanvasWidth}px)`);
                     } else {
-                      // MOBILE & FITS ON SCREEN: Keep wrapper responsive
-                      chartWrapper.style.width = '100%';
+                      // MOBILE & FITS ON SCREEN: Canvas stays responsive within wrapper
                       console.log(`✓ Chart for ${sensor.name} uses responsive sizing (${totalDataPoints} points)`);
                     }
                     
