@@ -3,6 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <link rel="icon" type="image/png" href="{{ url_for('static', filename='picture/Logo\'s/Logo Black.png') }}">
   <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"></script>
   <script>
@@ -23,16 +24,52 @@
   <script type="text/javascript" src="{{ url_for('static', filename='js/app.js') }}" defer></script>
   <script src="https://cdn.socket.io/4.7.4/socket.io.min.js"></script>
   <script>
+    let robotConnected = false;
+    let updateInterval = null;
+    let charts = {};
+
     document.addEventListener('DOMContentLoaded', () => {
       const socket = io();
-      socket.on('connect', () => console.log('Connected to server'));
-      socket.on('update_sensor_data', () => updateDashboard());
+      
+      socket.on('connect', () => {
+        console.log('Connected to server');
+      });
+      
+      socket.on('update_sensor_data', async () => {
+        if (robotConnected) {
+          console.log('Robot sensor data updated, refreshing dashboard...');
+          await updateDashboard();
+        }
+      });
+
+      // Check robot connection status
+      async function checkRobotStatus() {
+        try {
+          const response = await fetch('/api/devices');
+          const data = await response.json();
+          robotConnected = data.success && data.devices && data.devices.length > 0;
+          
+          // Check if any device is actually online
+          if (data.devices) {
+            robotConnected = data.devices.some(d => d.status === 'online');
+          }
+        } catch (e) {
+          robotConnected = false;
+          console.error('Error checking robot status:', e);
+        }
+      }
+
+      // Initial status check
+      checkRobotStatus();
+      
+      // Check status every 30 seconds
+      setInterval(checkRobotStatus, 30000);
 
       async function updateDashboard() {
           try {
               const response = await fetch('/api/latest-readings');
               const data = await response.json();
-              if (data.success && data.readings) {
+              if (data.success && data.readings && Object.keys(data.readings).length > 0) {
                   for (const [name, reading] of Object.entries(data.readings)) {
                       const id = 'val-' + name.replace(/ /g, '-');
                       const el = document.getElementById(id);
@@ -44,8 +81,17 @@
                       }
                   }
               }
-          } catch (e) { console.error(e); }
+          } catch (e) { console.error('Error updating dashboard:', e); }
       }
+
+      // Only setup auto-refresh if robot is connected
+      if (robotConnected) {
+        updateDashboard();
+        updateInterval = setInterval(updateDashboard, 5000);
+      }
+
+      // Store updateDashboard globally for other use
+      window.updateDashboard = updateDashboard;
     });
   </script>
   <title>Sensor Data</title>
@@ -181,11 +227,11 @@
       {% if sensors %}
           {% for chart in charts %}
           <div class="stat-card">
-            <div class="stat-value" id="val-{{ chart.name|replace(' ', '-') }}">
-               {% if chart.data %}
-                 {{ chart.data[-1].value }} {{ chart.data[-1].unit or '' }}
+            <div class="stat-value" id="val-{{ chart.name|replace(' ', '-') }}" style="color: var(--text-clr);">
+               {% if chart.data and chart.data|length > 0 %}
+                 <span id="val-{{ chart.name|replace(' ', '-') }}-value">{{ chart.data[-1].value }}</span> <span id="val-{{ chart.name|replace(' ', '-') }}-unit">{{ chart.data[-1].unit or '' }}</span>
                {% else %}
-                 --
+                 <span id="val-{{ chart.name|replace(' ', '-') }}-value">--</span> <span id="val-{{ chart.name|replace(' ', '-') }}-unit"></span>
                {% endif %}
             </div>
             <div class="stat-label">{{ chart.name }}</div>
@@ -259,80 +305,114 @@
             `;
             document.head.appendChild(style);
             
-            // Chart.js configuration
+            // Chart.js configuration - Load data from server
             const chartData = {{ charts|tojson }};
             
-            // Create a unified timeline from all sensor data
-            const allTimestamps = new Set();
-            chartData.forEach(sensor => {
-              sensor.data.forEach(d => {
-                allTimestamps.add(d.timestamp);
-              });
-            });
-            
-            // Sort timestamps chronologically
-            const sortedTimestamps = Array.from(allTimestamps).sort();
-            const sharedLabels = sortedTimestamps.map(ts => new Date(ts).toLocaleTimeString());
-            
-            // Create charts with shared X-axis
-            chartData.forEach((sensor, index) => {
-              const ctx = document.getElementById(`chart-${index + 1}`).getContext('2d');
-              
-              // Map sensor data to the shared timeline
-              const timestampToValue = {};
-              sensor.data.forEach(d => {
-                timestampToValue[d.timestamp] = d.value;
-              });
-              
-              const values = sortedTimestamps.map(ts => timestampToValue[ts] !== undefined ? timestampToValue[ts] : null);
-              const unit = sensor.data[0]?.unit || '';
-              
-              new Chart(ctx, {
-                type: 'line',
-                data: {
-                  labels: sharedLabels,
-                  datasets: [{
-                    label: `${sensor.name} (${unit})`,
-                    data: values,
-                    borderColor: 'rgb(75, 192, 192)',
-                    backgroundColor: 'rgba(75, 192, 192, 0.2)',
-                    tension: 0.4,
-                    fill: true,
-                    spanGaps: true  // Connect points even with null values
-                  }]
-                },
-                options: {
-                  responsive: true,
-                  maintainAspectRatio: false,
-                  plugins: {
-                    legend: {
-                      labels: {
-                        color: '#e8eaed'
-                      }
-                    }
-                  },
-                  scales: {
-                    x: {
-                      ticks: {
-                        color: '#e8eaed',
-                        maxTicksLimit: 10
-                      },
-                      grid: {
-                        color: 'rgba(255, 255, 255, 0.1)'
-                      }
-                    },
-                    y: {
-                      ticks: {
-                        color: '#e8eaed'
-                      },
-                      grid: {
-                        color: 'rgba(255, 255, 255, 0.1)'
-                      }
-                    }
-                  }
+            if (!chartData || chartData.length === 0) {
+              console.log('No chart data available');
+            } else {
+              // Create a unified timeline from all sensor data
+              const allTimestamps = new Set();
+              chartData.forEach(sensor => {
+                if (sensor.data && sensor.data.length > 0) {
+                  sensor.data.forEach(d => {
+                    allTimestamps.add(d.timestamp);
+                  });
                 }
               });
-            });
+              
+              // Sort timestamps chronologically
+              const sortedTimestamps = Array.from(allTimestamps).sort();
+              const sharedLabels = sortedTimestamps.map(ts => {
+                const d = new Date(ts);
+                return d.toLocaleDateString() + ' ' + d.toLocaleTimeString();
+              });
+              
+              console.log(`Creating ${chartData.length} charts from ${sortedTimestamps.length} timesteps`);
+              
+              // Create charts with shared X-axis
+              chartData.forEach((sensor, index) => {
+                try {
+                  const canvasEl = document.getElementById(`chart-${index + 1}`);
+                  if (!canvasEl) {
+                    console.warn(`Canvas element chart-${index + 1} not found`);
+                    return;
+                  }
+                  
+                  const ctx = canvasEl.getContext('2d');
+                  
+                  // Map sensor data to the shared timeline
+                  const timestampToValue = {};
+                  if (sensor.data && sensor.data.length > 0) {
+                    sensor.data.forEach(d => {
+                      timestampToValue[d.timestamp] = d.value;
+                    });
+                  }
+                  
+                  const values = sortedTimestamps.map(ts => timestampToValue[ts] !== undefined ? timestampToValue[ts] : null);
+                  const unit = sensor.data && sensor.data[0] ? sensor.data[0].unit || '' : '';
+                  
+                  const colors = ['rgb(75, 192, 192)', 'rgb(255, 159, 64)', 'rgb(255, 99, 132)', 'rgb(54, 162, 235)', 'rgb(153, 102, 255)'];
+                  const color = colors[index % colors.length];
+                  
+                  window.charts[sensor.name] = new Chart(ctx, {
+                    type: 'line',
+                    data: {
+                      labels: sharedLabels,
+                      datasets: [{
+                        label: `${sensor.name} (${unit})`,
+                        data: values,
+                        borderColor: color,
+                        backgroundColor: color.replace('rgb', 'rgba').replace(')', ', 0.2)'),
+                        tension: 0.3,
+                        fill: true,
+                        spanGaps: true,
+                        pointRadius: 3,
+                        pointHoverRadius: 5
+                      }]
+                    },
+                    options: {
+                      responsive: true,
+                      maintainAspectRatio: false,
+                      interaction: {
+                        mode: 'index',
+                        intersect: false
+                      },
+                      plugins: {
+                        legend: {
+                          display: true,
+                          labels: {
+                            color: '#e8eaed'
+                          }
+                        }
+                      },
+                      scales: {
+                        x: {
+                          ticks: {
+                            color: '#e8eaed',
+                            maxTicksLimit: 12
+                          },
+                          grid: {
+                            color: 'rgba(255, 255, 255, 0.1)'
+                          }
+                        },
+                        y: {
+                          ticks: {
+                            color: '#e8eaed'
+                          },
+                          grid: {
+                            color: 'rgba(255, 255, 255, 0.1)'
+                          }
+                        }
+                      }
+                    }
+                  });
+                  console.log(`Chart created for ${sensor.name} with ${values.length} data points`);
+                } catch (e) {
+                  console.error(`Error creating chart ${index + 1}:`, e);
+                }
+              });
+            }
           </script>
         {% else %}
           <div class="no-data">

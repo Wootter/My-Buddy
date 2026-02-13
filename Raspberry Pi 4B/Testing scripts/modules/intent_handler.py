@@ -104,21 +104,31 @@ async def handle_intent(intent, slots, robot, pwm_red, pwm_green, pwm_blue, led_
 async def _handle_sensor_intent(intent, slots, robot):
     """Handle sensor reading intents"""
     from viam.components.sensor import Sensor as ViamSensor
+    from viam.errors import ComponentNotFoundError
     
     cfg = INTENT_SENSOR_MAP.get(intent)
     room = slots.get("room", "inside")
     
     try:
-        sensor = ViamSensor.from_robot(robot, cfg["sensor_name"])
-        readings = await sensor.get_readings()
-        value = readings.get(cfg["reading_key"])
-        
-        if value is not None:
-            text = f"{intent} in {room}: {value} {cfg['unit']}"
-        else:
-            text = f"No data for {intent} in {room}"
+        # Check if sensor exists
+        try:
+            sensor = ViamSensor.from_robot(robot, cfg["sensor_name"])
+            readings = await sensor.get_readings()
+            value = readings.get(cfg["reading_key"])
+            
+            if value is not None:
+                text = f"{intent} in {room}: {value} {cfg['unit']}"
+            else:
+                text = f"No data for {intent} in {room}"
+        except (ComponentNotFoundError, ValueError) as ve:
+             # If specific sensor not found, try to list available resources to help debug
+            resources = await robot.get_resource_names()
+            sensor_names = [r.name for r in resources if r.subtype == 'sensor']
+            text = f"Sensor '{cfg['sensor_name']}' not found. Available sensors: {', '.join(sensor_names)}"
+            print(f"DEBUG: All resources: {[r.name for r in resources]}")
+
     except Exception as e:
-        text = f"Error reading {cfg['sensor_name']}: {e}"
+        text = f"Error reading {cfg['sensor_name']}: {type(e).__name__}: {e}"
     
     print(text)
     speak(text)

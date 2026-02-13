@@ -68,7 +68,7 @@ _cleanup_resources = {
 }
 
 
-def cleanup(sig=None, frame=None):
+async def cleanup():
     """Cleanup resources and exit"""
     print("\nCleaning up...")
     
@@ -98,9 +98,7 @@ def cleanup(sig=None, frame=None):
     
     # Close robot connection
     if _cleanup_resources['robot']:
-        asyncio.create_task(_cleanup_resources['robot'].close())
-    
-    sys.exit(0)
+        await _cleanup_resources['robot'].close()
 
 
 async def listen_for_speech(recorder, cobra):
@@ -162,7 +160,7 @@ async def listen_for_speech(recorder, cobra):
 
 async def main():
     """Main application loop"""
-    signal.signal(signal.SIGINT, cleanup)
+    # signal.signal(signal.SIGINT, cleanup)
     
     print("=== My Buddy Startup ===\n")
     
@@ -294,7 +292,7 @@ async def main():
         pass
     
     finally:
-        cleanup()
+        await cleanup()
 
 
 if __name__ == "__main__":
