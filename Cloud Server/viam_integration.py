@@ -149,10 +149,127 @@ async def _fetch_viam_data_async(robot_id, api_key, api_key_id, robot_address):
     return readings_saved
 
 
+async def _fetch_viam_data_async_live(robot_id, api_key, api_key_id, robot_address):
+    """Async function to fetch LIVE data from Viam robot (without saving to database)."""
+    from viam.robot.client import RobotClient
+    from viam.components.sensor import Sensor as ViamSensor
+    
+    logger.debug(f"[LIVE] Fetching sensor data from Viam...")
+    
+    # Connect to Viam robot
+    opts = RobotClient.Options.with_api_key(
+        api_key=api_key,
+        api_key_id=api_key_id
+    )
+    robot = await RobotClient.at_address(robot_address, opts)
+    
+    timestamp = datetime.utcnow()
+    live_readings = {}
+    
+    try:
+        # Fetch data from each sensor
+        for sensor_config in VIAM_SENSORS:
+            try:
+                try:
+                    viam_sensor = ViamSensor.from_robot(robot, sensor_config['viam_name'])
+                    sensor_readings = await viam_sensor.get_readings()
+                    
+                    reading_key = sensor_config['reading_key']
+                    if reading_key in sensor_readings:
+                        value = sensor_readings[reading_key]
+                        
+                        # Convert boolean to float for display
+                        if isinstance(value, bool):
+                            value = 1.0 if value else 0.0
+                        else:
+                            value = float(value)
+                        
+                        # Store in live_readings dict (NOT in database)
+                        live_readings[sensor_config['sensor_name']] = {
+                            'value': value,
+                            'unit': sensor_config['unit'],
+                            'timestamp': timestamp.isoformat()
+                        }
+                        
+                        logger.debug(f"  [LIVE] {sensor_config['sensor_name']}: {value} {sensor_config['unit']}")
+                    else:
+                        logger.debug(f"  [LIVE] {sensor_config['sensor_name']}: Key '{reading_key}' not found")
+                        
+                except Exception as sensor_error:
+                    logger.debug(f"  [LIVE] {sensor_config['sensor_name']}: {type(sensor_error).__name__}")
+                    
+            except Exception as e:
+                logger.debug(f"  [LIVE] {sensor_config['sensor_name']}: {e}")
+        
+    finally:
+        await robot.close()
+    
+    return live_readings
+
+
+def fetch_live_sensor_data():
+    """
+    Fetch LIVE sensor data from Viam for all connected user robots.
+    Does NOT save to database - only returns for Socket.IO broadcast.
+    Called by scheduler every 5 seconds.
+    """
+    try:
+        import asyncio
+        
+        # Get all robots that have been connected by users
+        robots = Robot.query.all()
+        
+        if not robots:
+            logger.debug("[LIVE] No robots connected yet.")
+            return {}
+        
+        all_live_readings = {}
+        
+        # Fetch data for each robot
+        for robot in robots:
+            try:
+                # Get a user's credentials for this robot
+                user_robot = robot.user_robots[0] if robot.user_robots else None
+                
+                if not user_robot:
+                    logger.debug(f"[LIVE] Robot {robot.robot_name} has no users connected")
+                    continue
+                
+                # Run the async function
+                loop = asyncio.new_event_loop()
+                asyncio.set_event_loop(loop)
+                try:
+                    readings = loop.run_until_complete(_fetch_viam_data_async_live(
+                        robot_id=robot.id,
+                        api_key=user_robot.get_viam_api_key(),
+                        api_key_id=user_robot.get_viam_api_key_id(),
+                        robot_address=robot.viam_robot_address
+                    ))
+                    all_live_readings.update(readings)
+                finally:
+                    loop.close()
+            
+            except InvalidToken:
+                logger.debug(f"[LIVE] Failed to decrypt credentials for robot: {robot.robot_name}")
+                
+            except Exception as e:
+                logger.debug(f"[LIVE] Failed to fetch data for {robot.robot_name}: {e}")
+        
+        return all_live_readings
+        
+    except ImportError:
+        logger.error("[LIVE] viam-sdk not installed. Install with: pip install viam-sdk")
+        return {}
+    except Exception as e:
+        logger.error(f"[LIVE] Failed to fetch Viam live data: {e}")
+        return {}
+
+
 def fetch_and_store_sensor_data():
     """
     Fetch sensor data from Viam for all connected user robots.
-    Called by scheduler every hour.
+    Called by scheduler every hour at xx:00.
+    Data is SAVED to database for graphs.
     """
     try:
         import asyncio

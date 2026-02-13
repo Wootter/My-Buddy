@@ -16,6 +16,7 @@ from flask_migrate import Migrate
 from datetime import datetime, timedelta
 from apscheduler.schedulers.background import BackgroundScheduler
 from apscheduler.triggers.interval import IntervalTrigger
+from apscheduler.triggers.cron import CronTrigger
 import atexit
 import logging
 
@@ -60,11 +61,27 @@ with app.app_context():
 
 
 # ==================== VIAM BACKGROUND SCHEDULER ====================
+
+def scheduled_viam_live_fetch():
+    """Fetch LIVE Viam sensor data (runs every 5 seconds) - does NOT save to database"""
+    with app.app_context():
+        from viam_integration import fetch_live_sensor_data
+        live_data = fetch_live_sensor_data()
+        
+        if live_data:
+            logger.debug(f"✓ Live sensor data fetched: {len(live_data)} sensors")
+            # Emit live data to all connected clients via Socket.IO
+            socketio.emit('live_sensor_data', {
+                'success': True,
+                'readings': live_data
+            }, broadcast=True)
+
+
 def scheduled_viam_fetch():
-    """Fetch Viam sensor data (runs every hour)"""
+    """Fetch Viam sensor data and save to database (runs every hour at xx:00)"""
     with app.app_context():
         from viam_integration import fetch_and_store_sensor_data
-        logger.info("🤖 Scheduled Viam sensor data fetch started")
+        logger.info("🤖 Scheduled Viam sensor data fetch started (SAVING TO DATABASE)")
         fetch_and_store_sensor_data()
 
 
@@ -72,16 +89,25 @@ def scheduled_viam_fetch():
 scheduler = BackgroundScheduler()
 scheduler.start()
 
-# Schedule Viam data fetch every hour
+# Schedule LIVE data fetch every 5 seconds (does NOT save to database)
 scheduler.add_job(
-    func=scheduled_viam_fetch,
-    trigger=IntervalTrigger(hours=1),
-    id='viam_sensor_fetch',
-    name='Fetch Viam sensor data',
+    func=scheduled_viam_live_fetch,
+    trigger=IntervalTrigger(seconds=5),
+    id='viam_live_fetch',
+    name='Fetch LIVE Viam sensor data (broadcast via Socket.IO)',
     replace_existing=True
 )
 
-# Fetch data immediately on startup (optional - comment out if you don't want this)
+# Schedule database-saving fetch every hour at xx:00 (0 minutes past the hour)
+scheduler.add_job(
+    func=scheduled_viam_fetch,
+    trigger=CronTrigger(minute=0),
+    id='viam_sensor_fetch_hourly',
+    name='Fetch Viam sensor data (save to database)',
+    replace_existing=True
+)
+
+# Fetch data immediately on startup for initial graph population
 scheduler.add_job(
     func=scheduled_viam_fetch,
     id='viam_startup_fetch',
@@ -92,7 +118,9 @@ scheduler.add_job(
 # Shutdown scheduler when app exits
 atexit.register(lambda: scheduler.shutdown())
 
-logger.info("✓ Viam scheduler initialized - fetching sensor data every hour")
+logger.info("✓ Viam scheduler initialized")
+logger.info("  - Live data fetched every 5 seconds (broadcast via Socket.IO)")
+logger.info("  - Database data fetched and saved every hour at xx:00")
 
 
 # ==================== ROUTES ====================

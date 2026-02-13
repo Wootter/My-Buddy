@@ -35,12 +35,42 @@
         console.log('Connected to server');
       });
       
-      socket.on('update_sensor_data', async () => {
-        if (robotConnected) {
-          console.log('Robot sensor data updated, refreshing dashboard...');
-          await updateDashboard();
+      // Listen for LIVE sensor data updates (every 5 seconds)
+      socket.on('live_sensor_data', (data) => {
+        if (data.success && data.readings) {
+          console.log('Live sensor data received:', Object.keys(data.readings).length, 'sensors');
+          updateLiveSensorDisplay(data.readings);
         }
       });
+      
+      socket.on('update_sensor_data', async () => {
+        console.log('Database sensor data updated, charts will refresh on next page load...');
+      });
+
+      // Update live sensor display
+      function updateLiveSensorDisplay(readings) {
+        for (const [name, reading] of Object.entries(readings)) {
+          const id = 'val-' + name.replace(/ /g, '-');
+          const el = document.getElementById(id);
+          if (el) {
+            const valueSpan = el.querySelector('span:first-child') || document.createElement('span');
+            const unitSpan = el.querySelector('span:last-child') || document.createElement('span');
+            
+            valueSpan.textContent = reading.value.toFixed(2);
+            unitSpan.textContent = reading.unit || '';
+            
+            if (!el.querySelector('span:first-child')) {
+              el.appendChild(valueSpan);
+              el.appendChild(unitSpan);
+            }
+            
+            // Flash animation
+            el.style.transition = 'color 0.3s';
+            el.style.color = '#4ade80';
+            setTimeout(() => el.style.color = '', 1000);
+          }
+        }
+      }
 
       // Check robot connection status
       async function checkRobotStatus() {
@@ -65,36 +95,13 @@
       // Check status every 30 seconds
       setInterval(checkRobotStatus, 30000);
 
-      async function updateDashboard() {
-          try {
-              const response = await fetch('/api/latest-readings');
-              const data = await response.json();
-              if (data.success && data.readings && Object.keys(data.readings).length > 0) {
-                  for (const [name, reading] of Object.entries(data.readings)) {
-                      const id = 'val-' + name.replace(/ /g, '-');
-                      const el = document.getElementById(id);
-                      if (el) {
-                          el.textContent = `${reading.value} ${reading.unit || ''}`;
-                          el.style.transition = 'color 0.3s';
-                          el.style.color = '#4ade80';
-                          setTimeout(() => el.style.color = '', 1000);
-                      }
-                  }
-              }
-          } catch (e) { console.error('Error updating dashboard:', e); }
-      }
-
-      // Only setup auto-refresh if robot is connected
-      if (robotConnected) {
-        updateDashboard();
-        updateInterval = setInterval(updateDashboard, 5000);
-      }
-
       // Store updateDashboard globally for other use
-      window.updateDashboard = updateDashboard;
+      window.updateDashboard = function() {
+        console.log('Dashboard auto-refresh disabled - using live Socket.IO updates instead');
+      };
     });
   </script>
-  <title>Sensor Data</title>
+  <title>My Buddy - Sensor Data</title>
   <style>
     .chart-container {
       position: relative;
@@ -205,24 +212,17 @@
     <div class="container">
       <h1>Sensor Data Dashboard</h1>
       
-      <button id="refresh-btn" onclick="refreshData()" style="
+      <div id="live-data-status" style="
         padding: 12px 24px;
-        background: var(--base-clr);
-        color: white;
-        border: none;
+        background: rgba(74, 222, 128, 0.1);
+        color: #4ade80;
+        border-left: 4px solid #4ade80;
         border-radius: 8px;
-        font-size: 1em;
-        cursor: pointer;
         margin-bottom: 20px;
-        display: flex;
-        align-items: center;
-        gap: 8px;
+        font-size: 0.95em;
       ">
-        <svg id="refresh-icon" xmlns="http://www.w3.org/2000/svg" height="20px" viewBox="0 -960 960 960" width="20px" fill="white">
-          <path d="M480-160q-134 0-227-93t-93-227q0-134 93-227t227-93q69 0 132 28.5T720-690v-110h80v280H520v-80h168q-32-56-87.5-88T480-720q-100 0-170 70t-70 170q0 100 70 170t170 70q77 0 139-44t87-116h84q-28 106-114 173t-196 67Z"/>
-        </svg>
-        <span id="refresh-text">Refresh Data Now</span>
-      </button>
+        <strong>🔴 Live</strong> - Receiving real-time sensor data via Socket.IO every 5 seconds
+      </div>
       
       {% if sensors %}
       <div class="stats-grid">
@@ -230,9 +230,9 @@
           <div class="stat-card">
             <div class="stat-value" id="val-{{ chart.name|replace(' ', '-') }}" style="color: var(--text-clr);">
                {% if chart.data and chart.data|length > 0 %}
-                 <span id="val-{{ chart.name|replace(' ', '-') }}-value">{{ chart.data[-1].value }}</span> <span id="val-{{ chart.name|replace(' ', '-') }}-unit">{{ chart.data[-1].unit or '' }}</span>
+                 <span>{{ chart.data[-1].value }}</span> <span>{{ chart.data[-1].unit or '' }}</span>
                {% else %}
-                 <span id="val-{{ chart.name|replace(' ', '-') }}-value">--</span> <span id="val-{{ chart.name|replace(' ', '-') }}-unit"></span>
+                 <span>--</span> <span></span>
                {% endif %}
             </div>
             <div class="stat-label">{{ chart.name }}</div>
@@ -249,63 +249,6 @@
           {% endfor %}
 
           <script>
-            // Refresh data function
-            async function refreshData() {
-              const btn = document.getElementById('refresh-btn');
-              const text = document.getElementById('refresh-text');
-              const icon = document.getElementById('refresh-icon');
-              
-              // Disable button and show loading state
-              btn.disabled = true;
-              btn.style.opacity = '0.6';
-              btn.style.cursor = 'not-allowed';
-              text.textContent = 'Fetching from Viam...';
-              icon.style.animation = 'spin 1s linear infinite';
-              
-              try {
-                const response = await fetch('/api/viam/fetch-now', {
-                  method: 'POST'
-                });
-                const result = await response.json();
-                
-                if (result.success) {
-                  text.textContent = `✓ Fetched ${result.readings_saved} readings`;
-                  setTimeout(() => {
-                    // Reload page to show new data
-                    window.location.reload();
-                  }, 1000);
-                } else {
-                  text.textContent = '✗ Fetch failed';
-                  setTimeout(() => {
-                    text.textContent = 'Refresh Data Now';
-                    btn.disabled = false;
-                    btn.style.opacity = '1';
-                    btn.style.cursor = 'pointer';
-                    icon.style.animation = '';
-                  }, 2000);
-                }
-              } catch (error) {
-                text.textContent = '✗ Error occurred';
-                setTimeout(() => {
-                  text.textContent = 'Refresh Data Now';
-                  btn.disabled = false;
-                  btn.style.opacity = '1';
-                  btn.style.cursor = 'pointer';
-                  icon.style.animation = '';
-                }, 2000);
-              }
-            }
-            
-            // Add CSS animation for spinning icon
-            const style = document.createElement('style');
-            style.textContent = `
-              @keyframes spin {
-                from { transform: rotate(0deg); }
-                to { transform: rotate(360deg); }
-              }
-            `;
-            document.head.appendChild(style);
-            
             // Wait for Chart.js to be available
             function initCharts() {
               // Check if Chart.js is loaded
