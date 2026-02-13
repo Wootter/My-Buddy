@@ -95,9 +95,7 @@ scheduler.add_job(
     trigger=IntervalTrigger(seconds=5),
     id='viam_live_fetch',
     name='Fetch LIVE Viam sensor data (broadcast via Socket.IO)',
-    replace_existing=True,
-    coalesce=True,
-    max_instances=1
+    replace_existing=True
 )
 
 # Schedule database-saving fetch every hour at xx:00 (0 minutes past the hour)
