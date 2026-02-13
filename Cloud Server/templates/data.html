@@ -292,6 +292,37 @@
           {% endfor %}
 
           <script>
+            // Store all chart instances for theme updates
+            const activeCharts = [];
+            
+            // Get theme-aware colors
+            function getThemeColors() {
+              const isDark = !document.body.classList.contains('lightmode');
+              return {
+                textColor: isDark ? '#e8eaed' : '#0f1419',
+                gridColor: isDark ? 'rgba(255, 255, 255, 0.1)' : 'rgba(0, 0, 0, 0.1)'
+              };
+            }
+            
+            // Update all charts when theme changes
+            function updateChartsTheme() {
+              const colors = getThemeColors();
+              activeCharts.forEach(chart => {
+                chart.options.plugins.legend.labels.color = colors.textColor;
+                chart.options.scales.x.ticks.color = colors.textColor;
+                chart.options.scales.y.ticks.color = colors.textColor;
+                chart.options.scales.x.grid.color = colors.gridColor;
+                chart.options.scales.y.grid.color = colors.gridColor;
+                chart.update();
+              });
+            }
+            
+            // Listen for theme changes
+            const themeObserver = new MutationObserver(() => {
+              updateChartsTheme();
+            });
+            themeObserver.observe(document.body, { attributes: true, attributeFilter: ['class'] });
+            
             // Wait for Chart.js to be available
             function initCharts() {
               // Check if Chart.js is loaded
@@ -392,8 +423,9 @@
                     
                     const colors = ['rgb(75, 192, 192)', 'rgb(255, 159, 64)', 'rgb(255, 99, 132)', 'rgb(54, 162, 235)', 'rgb(153, 102, 255)'];
                     const color = colors[index % colors.length];
+                    const themeColors = getThemeColors();
                     
-                    new Chart(ctx, {
+                    const chart = new Chart(ctx, {
                       type: 'line',
                       data: {
                         labels: sharedLabels,
@@ -425,7 +457,7 @@
                           legend: {
                             display: true,
                             labels: {
-                              color: '#e8eaed',
+                              color: themeColors.textColor,
                               font: { size: 12 }
                             }
                           },
@@ -447,12 +479,12 @@
                           x: {
                             display: true,
                             ticks: {
-                              color: '#e8eaed',
+                              color: themeColors.textColor,
                               maxTicksLimit: 12,
                               autoSkip: true
                             },
                             grid: {
-                              color: 'rgba(255, 255, 255, 0.1)',
+                              color: themeColors.gridColor,
                               display: true
                             }
                           },
@@ -461,7 +493,7 @@
                             min: yMin,
                             max: yMax,
                             ticks: {
-                              color: '#e8eaed',
+                              color: themeColors.textColor,
                               stepSize: isMotionSensor ? 1 : undefined,
                               callback: isMotionSensor ? function(value) {
                                 if (value === 0) return 'no movement';
@@ -470,13 +502,16 @@
                               } : undefined
                             },
                             grid: {
-                              color: 'rgba(255, 255, 255, 0.1)',
+                              color: themeColors.gridColor,
                               display: true
                             }
                           }
                         }
                       }
                     });
+                    
+                    // Store chart reference for theme updates
+                    activeCharts.push(chart);
                     
                     console.log(`✓ Chart rendered for ${sensor.name} with ${values.length} data points`);
                     
