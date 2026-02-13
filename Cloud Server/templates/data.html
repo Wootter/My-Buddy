@@ -417,29 +417,18 @@
                     const pointWidth = 60; // pixels per data point for readability
                     const isMobile = window.innerWidth < 768;
                     
-                    // PRE-CALCULATE canvas dimensions BEFORE creating chart
-                    let finalCanvasWidth = 400; // default width (responsive container)
-                    let finalCanvasHeight = 200;
-                    
+                    // DESKTOP: Set explicit width for scrollable charts with excess data
                     if (totalDataPoints > maxDataPoints && !isMobile) {
-                      // DESKTOP ONLY: Calculate exact width needed for all data points with scrolling
-                      finalCanvasWidth = totalDataPoints * pointWidth;
+                      // Calculate exact width needed for all data points
+                      const finalCanvasWidth = totalDataPoints * pointWidth;
                       canvasEl.width = finalCanvasWidth;
-                      canvasEl.height = finalCanvasHeight;
+                      canvasEl.height = 250;
+                      chartContainer.style.overflowX = 'auto';
                       console.log(`✓ Chart for ${sensor.name} is scrollable (${totalDataPoints} points > ${maxDataPoints} max, width: ${finalCanvasWidth}px)`);
-                    } else if (totalDataPoints > maxDataPoints && isMobile) {
-                      // MOBILE: Keep responsive, compress data point spacing
-                      // Let Chart.js handle responsive scaling, don't set width
-                      chartContainer.style.overflow = 'auto';
-                      console.log(`✓ Chart for ${sensor.name} is responsive on mobile (${totalDataPoints} points, compressed display)`);
-                    } else {
-                      // FITS ON SCREEN: Let it be responsive
-                      console.log(`✓ Chart for ${sensor.name} fits on screen (${totalDataPoints} points <= ${maxDataPoints} max)`);
                     }
-                    
-                    // Only set height, let Chart.js handle width responsiveness on mobile
-                    if (isMobile && totalDataPoints <= maxDataPoints) {
-                      canvasEl.height = finalCanvasHeight;
+                    // MOBILE & SMALL SCREENS: Don't set dimensions, let Chart.js handle responsive sizing
+                    else {
+                      console.log(`✓ Chart for ${sensor.name} uses responsive sizing (${totalDataPoints} points)`);
                     }
                     
                     const chart = new Chart(ctx, {
@@ -497,8 +486,10 @@
                             display: true,
                             ticks: {
                               color: themeColors.textColor,
-                              maxTicksLimit: 12,
-                              autoSkip: true
+                              maxTicksLimit: isMobile ? 6 : 25,
+                              autoSkip: true,
+                              maxRotation: 45,
+                              minRotation: 0
                             },
                             grid: {
                               color: themeColors.gridColor,
