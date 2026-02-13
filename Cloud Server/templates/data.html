@@ -76,7 +76,7 @@
             // Flash animation on stat card border
             const statCard = el.closest('.stat-card');
             if (statCard) {
-              statCard.style.borderColor = '#4ade80';
+              statCard.style.borderColor = '#94cd91';
               setTimeout(() => {
                 statCard.style.borderColor = 'transparent';
               }, 1000);
@@ -178,7 +178,7 @@
       border-radius: 10px;
       text-align: center;
       border: 2px solid transparent;
-      transition: border-color 0.3s ease-in-out;
+      transition: border-color 0.01s ease-in-out;
     }
     .stat-value {
       font-size: 2em;
@@ -329,7 +329,13 @@
                 
                 const sharedLabels = sortedTimestamps.map(ts => {
                   const d = new Date(ts);
-                  return d.toLocaleDateString() + ' ' + d.toLocaleTimeString();
+                  const day = String(d.getDate()).padStart(2, '0');
+                  const month = String(d.getMonth() + 1).padStart(2, '0');
+                  const year = String(d.getFullYear()).slice(-2);
+                  const hour = d.getHours();
+                  const ampm = hour >= 12 ? 'pm' : 'am';
+                  const hour12 = hour % 12 || 12;
+                  return `${day}/${month}/${year} ${hour12}${ampm}`;
                 });
                 
                 console.log(`Creating ${chartData.length} charts from ${sortedTimestamps.length} unique timestamps`);
@@ -363,6 +369,23 @@
                     
                     const values = sortedTimestamps.map(ts => timestampToValue[ts] !== undefined ? timestampToValue[ts] : null);
                     const unit = sensor.data && sensor.data[0] ? sensor.data[0].unit || '' : '';
+                    
+                    // Determine if this is a motion sensor
+                    const isMotionSensor = sensor.name.includes('Motion');
+                    
+                    // Calculate dynamic max for y-axis
+                    let yMin = 0;
+                    let yMax = 100;
+                    let yFormatter = null;
+                    
+                    if (isMotionSensor) {
+                      yMax = 1;
+                      yFormatter = (value) => value >= 0.5 ? 'movement' : 'no movement';
+                    } else {
+                      // Find max value in dataset and add 10% padding
+                      const maxValue = Math.max(...values.filter(v => v !== null));
+                      yMax = isFinite(maxValue) ? Math.ceil(maxValue * 1.1) : 100;
+                    }
                     
                     const colors = ['rgb(75, 192, 192)', 'rgb(255, 159, 64)', 'rgb(255, 99, 132)', 'rgb(54, 162, 235)', 'rgb(153, 102, 255)'];
                     const color = colors[index % colors.length];
@@ -404,6 +427,16 @@
                           },
                           title: {
                             display: false
+                          },
+                          tooltip: {
+                            callbacks: {
+                              label: function(context) {
+                                if (isMotionSensor) {
+                                  return yFormatter(context.parsed.y);
+                                }
+                                return context.parsed.y.toFixed(2) + ' ' + unit;
+                              }
+                            }
                           }
                         },
                         scales: {
@@ -421,8 +454,13 @@
                           },
                           y: {
                             display: true,
+                            min: yMin,
+                            max: yMax,
                             ticks: {
-                              color: '#e8eaed'
+                              color: '#e8eaed',
+                              callback: isMotionSensor ? function(value) {
+                                return yFormatter(value);
+                              } : undefined
                             },
                             grid: {
                               color: 'rgba(255, 255, 255, 0.1)',
