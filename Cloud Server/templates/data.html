@@ -271,7 +271,9 @@
           {% for chart in charts %}
           <div class="chart-container">
             <h3 class="chart-title">{{ chart.name }} - {{ chart.type|title }}</h3>
-            <canvas id="chart-{{ loop.index }}" width="400" height="200"></canvas>
+            <div class="chart-wrapper" id="wrapper-{{ loop.index }}">
+              <canvas id="chart-{{ loop.index }}" width="400" height="200"></canvas>
+            </div>
           </div>
           {% endfor %}
 
@@ -409,25 +411,25 @@
                     const color = colors[index % colors.length];
                     const themeColors = getThemeColors();
                     
-                    // ==================== SCROLLABLE CHARTS - RESPONSIVE FOR MOBILE ====================
-                    // Calculate max data points for readability based on screen width
+                    // ==================== SCROLLABLE CHARTS - PROPER CSS METHOD ====================
                     const maxDataPoints = window.calculateMaxDataPoints();
                     const totalDataPoints = sortedTimestamps.length;
-                    const chartContainer = document.getElementById(chartId).parentElement;
+                    const wrapperIndex = index + 1;
+                    const chartWrapper = document.getElementById(`wrapper-${wrapperIndex}`);
                     const pointWidth = 60; // pixels per data point for readability
                     const isMobile = window.innerWidth < 768;
                     
-                    // DESKTOP: Set explicit width for scrollable charts with excess data
+                    // Set canvas and wrapper dimensions
                     if (totalDataPoints > maxDataPoints && !isMobile) {
-                      // Calculate exact width needed for all data points
+                      // DESKTOP: Set explicit width for scrollable canvas
                       const finalCanvasWidth = totalDataPoints * pointWidth;
+                      chartWrapper.style.width = finalCanvasWidth + 'px';
                       canvasEl.width = finalCanvasWidth;
                       canvasEl.height = 250;
-                      chartContainer.style.overflowX = 'auto';
-                      console.log(`✓ Chart for ${sensor.name} is scrollable (${totalDataPoints} points > ${maxDataPoints} max, width: ${finalCanvasWidth}px)`);
-                    }
-                    // MOBILE & SMALL SCREENS: Don't set dimensions, let Chart.js handle responsive sizing
-                    else {
+                      console.log(`✓ Chart for ${sensor.name} is scrollable (${totalDataPoints} points, width: ${finalCanvasWidth}px)`);
+                    } else {
+                      // MOBILE & FITS ON SCREEN: Keep wrapper responsive
+                      chartWrapper.style.width = '100%';
                       console.log(`✓ Chart for ${sensor.name} uses responsive sizing (${totalDataPoints} points)`);
                     }
                     
@@ -459,11 +461,6 @@
                           mode: 'index',
                           intersect: false
                         },
-                        layout: {
-                          padding: {
-                            bottom: 50
-                          }
-                        },
                         plugins: {
                           legend: {
                             display: true,
@@ -491,13 +488,8 @@
                             display: true,
                             ticks: {
                               color: themeColors.textColor,
-                              maxTicksLimit: isMobile ? 6 : 10,
-                              autoSkip: true,
-                              maxRotation: -45,
-                              minRotation: -45,
-                              font: {
-                                size: 11
-                              }
+                              maxTicksLimit: isMobile ? 6 : 12,
+                              autoSkip: true
                             },
                             grid: {
                               color: themeColors.gridColor,
