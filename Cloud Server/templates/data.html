@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <link rel="icon" type="image/png" href="{{ url_for('static', filename='picture/Logo\'s/Logo White.png') }}">
   <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
-  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js" defer></script>
   <script>
     // Apply theme immediately to prevent flash
     (function() {
@@ -308,15 +308,18 @@
             
             // Wait for Chart.js to be available
             function initCharts() {
+              // Check if Chart.js is loaded
               if (typeof Chart === 'undefined') {
-                console.error('Chart.js library not loaded');
+                console.warn('Chart.js not yet available, retrying in 100ms...');
                 setTimeout(initCharts, 100);
                 return;
               }
               
+              console.log('✓ Chart.js library loaded');
+              
               // Chart.js configuration - Load data from server
               const chartData = {{ charts|tojson }};
-              console.log('Chart data:', chartData);
+              console.log('Chart data available:', chartData && chartData.length > 0 ? `${chartData.length} sensors` : 'none');
               
               if (!chartData || chartData.length === 0) {
                 console.log('No chart data available');
@@ -457,8 +460,12 @@
               }
             }
             
-            // Initialize charts when DOM is ready
-            initCharts();
+            // Initialize charts when DOM is ready AND Chart.js is loaded
+            if (document.readyState === 'loading') {
+              document.addEventListener('DOMContentLoaded', initCharts);
+            } else {
+              initCharts();
+            }
           </script>
         {% else %}
           <div class="no-data">
