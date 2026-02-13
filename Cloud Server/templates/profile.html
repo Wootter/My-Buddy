@@ -5,6 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <link rel="icon" type="image/png" href="{{ url_for('static', filename='picture/Logo\'s/Logo White.png') }}">
   <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/profile.css') }}">
   <script>
     // Apply theme immediately to prevent flash
     (function() {
@@ -340,186 +341,15 @@
     </div>
   </div>
 
-  <style>
-    .modal {
-      display: none;
-      position: fixed;
-      z-index: 1000;
-      left: 0;
-      top: 0;
-      width: 100%;
-      height: 100%;
-      background-color: rgba(0, 0, 0, 0.6);
-    }
-
-    .modal-content {
-      background-color: var(--base-clr);
-      position: absolute;
-      top: 50%;
-      left: 50%;
-      transform: translate(-50%, -50%);
-      padding: 30px;
-      border-radius: 10px;
-      width: 90%;
-      max-width: 400px;
-      color: var(--text-clr);
-      max-height: 90vh;
-      overflow-y: auto;
-    }
-
-    .close {
-      color: var(--text-clr);
-      float: right;
-      font-size: 28px;
-      font-weight: bold;
-      cursor: pointer;
-    }
-
-    .close:hover {
-      color: #ff6b6b;
-    }
-
-    .form-group {
-      margin-bottom: 20px;
-    }
-
-    .form-group label {
-      display: block;
-      margin-bottom: 8px;
-      font-weight: 500;
-    }
-
-    .form-group input {
-      width: 100%;
-      padding: 10px;
-      border: 1px solid var(--line-clr);
-      border-radius: 6px;
-      background: var(--hover-clr);
-      color: var(--text-clr);
-      box-sizing: border-box;
-    }
-
-    .form-group input:focus {
-      outline: none;
-      border-color: #4a9eff;
-    }
-
-    .form-buttons {
-      display: flex;
-      gap: 10px;
-      margin-top: 25px;
-    }
-
-    .cancel-btn, .save-btn {
-      flex: 1;
-      padding: 12px;
-      border: none;
-      border-radius: 6px;
-      cursor: pointer;
-      font-weight: 500;
-    }
-
-    .cancel-btn {
-      background: var(--line-clr);
-      color: var(--text-clr);
-    }
-
-    .save-btn {
-      background: #4a9eff;
-      color: white;
-    }
-
-    .save-btn:hover {
-      background: #2e7fd4;
-    }
-
-    .modal-message {
-      margin-bottom: 15px;
-      padding: 12px;
-      border-radius: 6px;
-      text-align: center;
-    }
-
-    .modal-message.success {
-      background: #2ecc71;
-      color: white;
-    }
-
-    .modal-message.error {
-      background: #e74c3c;
-      color: white;
-    }
-
-    .device-item {
-      display: flex;
-      flex-direction: column;
-      padding: 15px;
-      background: var(--hover-clr);
-      border-radius: 8px;
-      margin-bottom: 12px;
-      border: 1px solid var(--line-clr);
-    }
-
-    .device-header {
-      display: flex;
-      align-items: center;
-      margin-bottom: 12px;
-    }
-
-    .device-icon {
-      font-size: 2em;
-      margin-right: 15px;
-    }
-
-    .device-info {
-      flex: 1;
-    }
-
-    .device-info h3 {
-      margin: 0 0 5px 0;
-      color: var(--text-clr);
-    }
-
-    .device-info p {
-      margin: 0;
-      font-size: 0.9em;
-      color: var(--text-clr);
-      opacity: 0.7;
-    }
-
-    .device-footer {
-      display: flex;
-      gap: 10px;
-      justify-content: space-between;
-      align-items: center;
-    }
-
-    .device-action-btn, .device-delete-btn {
-      padding: 8px 16px;
-      border: none;
-      border-radius: 6px;
-      cursor: pointer;
-      font-size: 0.9em;
-    }
-
-    .device-action-btn {
-      background: #4a9eff;
-      color: white;
-    }
-
-    .device-action-btn:hover {
-      background: #2e7fd4;
-    }
-
-    .device-delete-btn {
-      background: #e74c3c;
-      color: white;
     }
 
     .device-delete-btn:hover {
       background: #c0392b;
     }
   </style>
+
+  <title>My Buddy - Profile</title>
+</head>
 
   <script>
     // Username Modal Functions
