@@ -411,16 +411,23 @@
                     const color = colors[index % colors.length];
                     const themeColors = getThemeColors();
                     
-                    // ==================== SCROLLABLE CHARTS - FIXED POINT SPACING ====================
+                    // ==================== SCROLLABLE CHARTS - PROPER CSS METHOD ====================
+                    const maxDataPoints = window.calculateMaxDataPoints();
                     const totalDataPoints = sortedTimestamps.length;
-                    const pointWidth = 60; // pixels per data point - fixed spacing, never compress
+                    const pointWidth = 60; // pixels per data point for readability
+                    const isMobile = window.innerWidth < 768;
                     
-                    // Always calculate canvas width with fixed point spacing
-                    const finalCanvasWidth = totalDataPoints * pointWidth;
-                    canvasEl.width = finalCanvasWidth;
-                    canvasEl.height = 250;
-                    
-                    console.log(`✓ Chart for ${sensor.name} has fixed spacing (${totalDataPoints} points × ${pointWidth}px = ${finalCanvasWidth}px)`);
+                    // Set canvas dimensions (wrapper stays at 100% for individual scrolling)
+                    if (totalDataPoints > maxDataPoints && !isMobile) {
+                      // DESKTOP: Set explicit canvas width for internal scrolling within wrapper
+                      const finalCanvasWidth = totalDataPoints * pointWidth;
+                      canvasEl.width = finalCanvasWidth;
+                      canvasEl.height = 250;
+                      console.log(`✓ Chart for ${sensor.name} is scrollable (${totalDataPoints} points, width: ${finalCanvasWidth}px)`);
+                    } else {
+                      // MOBILE & FITS ON SCREEN: Canvas stays responsive within wrapper
+                      console.log(`✓ Chart for ${sensor.name} uses responsive sizing (${totalDataPoints} points)`);
+                    }
                     
                     const chart = new Chart(ctx, {
                       type: 'line',
@@ -441,7 +448,7 @@
                         }]
                       },
                       options: {
-                        responsive: false,
+                        responsive: true,
                         maintainAspectRatio: false,
                         animation: {
                           duration: 500
