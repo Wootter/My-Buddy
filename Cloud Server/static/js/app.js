@@ -11,12 +11,14 @@ const enableLightmode = () => {
   document.documentElement.classList.add('lightmode')
   document.body.classList.add('lightmode')
   localStorage.setItem('lightmode', 'active')
+  console.log('✓ Light mode enabled')
 }
 
 const disableLightmode = () => {
   document.documentElement.classList.remove('lightmode')
   document.body.classList.remove('lightmode')
-  localStorage.setItem('lightmode', null)
+  localStorage.removeItem('lightmode')
+  console.log('✓ Dark mode enabled')
 }
 
 // Apply theme on page load
@@ -24,9 +26,13 @@ if(lightmode === 'active') enableLightmode()
 
 // Theme switch event listener - check actual DOM state, not cached value
 if(themeSwitch) {
-  themeSwitch.addEventListener('click', () => {
+  themeSwitch.addEventListener('click', (e) => {
+    e.preventDefault()
     const isCurrentlyLight = document.body.classList.contains('lightmode')
+    console.log('Theme toggle clicked. Current state:', isCurrentlyLight ? 'light' : 'dark')
     isCurrentlyLight ? disableLightmode() : enableLightmode()
+    // Force a reflow to ensure CSS updates
+    void document.body.offsetHeight
   })
 }
 
