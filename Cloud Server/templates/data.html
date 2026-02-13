@@ -411,22 +411,23 @@
                     const color = colors[index % colors.length];
                     const themeColors = getThemeColors();
                     
-                    // ==================== SCROLLABLE CHARTS - PROPER CSS METHOD ====================
-                    const maxDataPoints = window.calculateMaxDataPoints();
+                    // ==================== SCROLLABLE CHARTS - FIXED POINT SPACING ====================
                     const totalDataPoints = sortedTimestamps.length;
-                    const pointWidth = 60; // pixels per data point for readability
-                    const isMobile = window.innerWidth < 768;
+                    const chartWrapper = document.getElementById(`wrapper-${index + 1}`);
+                    const pointWidth = 60; // pixels per data point - fixed spacing
                     
-                    // Set canvas dimensions (wrapper stays at 100% for individual scrolling)
-                    if (totalDataPoints > maxDataPoints && !isMobile) {
-                      // DESKTOP: Set explicit canvas width for internal scrolling within wrapper
-                      const finalCanvasWidth = totalDataPoints * pointWidth;
-                      canvasEl.width = finalCanvasWidth;
+                    // Calculate the needed width for all points with proper spacing
+                    const neededWidth = totalDataPoints * pointWidth;
+                    const availableWidth = chartWrapper.clientWidth - 30; // subtract padding
+                    
+                    // If data needs more space than available, freeze and enable scrolling
+                    if (neededWidth > availableWidth) {
+                      canvasEl.width = neededWidth;
                       canvasEl.height = 250;
-                      console.log(`✓ Chart for ${sensor.name} is scrollable (${totalDataPoints} points, width: ${finalCanvasWidth}px)`);
+                      console.log(`✓ Chart for ${sensor.name} is scrollable (needs ${neededWidth}px, has ${availableWidth}px)`);
                     } else {
-                      // MOBILE & FITS ON SCREEN: Canvas stays responsive within wrapper
-                      console.log(`✓ Chart for ${sensor.name} uses responsive sizing (${totalDataPoints} points)`);
+                      // Fits in available space - stay responsive
+                      console.log(`✓ Chart for ${sensor.name} fits (needs ${neededWidth}px, has ${availableWidth}px)`);
                     }
                     
                     const chart = new Chart(ctx, {

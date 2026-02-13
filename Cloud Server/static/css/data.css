@@ -57,7 +57,6 @@
 
 .chart-wrapper {
   width: 100%;
-  min-width: 600px;
   height: 280px;
   overflow-x: auto;
   overflow-y: hidden;
