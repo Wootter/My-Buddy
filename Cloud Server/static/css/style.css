@@ -800,24 +800,28 @@ form > .remember-forgot {
 
   #sidebar > ul{
     padding: 0;
-    display: grid;
-    grid-auto-columns: 60px;
-    grid-auto-flow: column;
+    display: flex;
+    justify-content: space-around;
     align-items: center;
-    overflow-x: auto;
-    overflow-y: hidden;
+    width: 100%;
+    height: 60px;
+    overflow: hidden;
   }
 
   #sidebar ul li{
+    flex: 1;
     height: 100%;
+    display: flex;
   }
 
   #sidebar ul a, #sidebar ul .dropdown-btn{
-    width: 60px;
+    flex: 1;
     height: 60px;
     padding: 0;
     border-radius: 0;
     justify-content: center;
+    display: flex;
+    align-items: center;
   }
 
   #sidebar ul li span, #sidebar ul li:first-child, #sidebar .dropdown-btn svg:last-child{
