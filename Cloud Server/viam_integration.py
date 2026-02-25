@@ -7,6 +7,7 @@ Handles fetching sensor data from Viam robot and storing in database.
 from datetime import datetime
 from extensions import db, socketio
 from models import SensorData, Sensor, Robot
+import asyncio
 import logging
 import traceback
 import nest_asyncio
@@ -47,19 +48,45 @@ VIAM_SENSORS = [
 ]
 
 
+async def _connect_robot_with_backoff(robot_address, api_key, api_key_id, attempts=3, base_delay=1.0, max_delay=5.0):
+    """Connect to a Viam robot with retry/backoff to handle transient failures."""
+    from viam.robot.client import RobotClient
+
+    opts = RobotClient.Options.with_api_key(
+        api_key=api_key,
+        api_key_id=api_key_id
+    )
+
+    last_error = None
+    for attempt in range(1, attempts + 1):
+        try:
+            return await RobotClient.at_address(robot_address, opts)
+        except Exception as exc:
+            last_error = exc
+            if attempt < attempts:
+                delay = min(max_delay, base_delay * (2 ** (attempt - 1)))
+                logger.warning(
+                    "Viam connect failed (%s/%s): %s. Retrying in %.1fs",
+                    attempt,
+                    attempts,
+                    exc,
+                    delay
+                )
+                await asyncio.sleep(delay)
+            else:
+                logger.error("Viam connect failed after %s attempts: %s", attempts, exc)
+
+    raise last_error
+
+
 async def _fetch_viam_data_async(robot_id, api_key, api_key_id, robot_address):
     """Async function to fetch data from Viam robot."""
-    from viam.robot.client import RobotClient
     from viam.components.sensor import Sensor as ViamSensor
     
     logger.info(f"[{datetime.now()}] Fetching sensor data from Viam...")
     
     # Connect to Viam robot
-    opts = RobotClient.Options.with_api_key(
-        api_key=api_key,
-        api_key_id=api_key_id
-    )
-    robot = await RobotClient.at_address(robot_address, opts)
+    robot = await _connect_robot_with_backoff(robot_address, api_key, api_key_id)
     
     # List all available components for debugging
     logger.info(f"Available components in robot:")
@@ -151,17 +178,12 @@ async def _fetch_viam_data_async(robot_id, api_key, api_key_id, robot_address):
 
 async def _fetch_viam_data_async_live(robot_id, api_key, api_key_id, robot_address):
     """Async function to fetch LIVE data from Viam robot (without saving to database)."""
-    from viam.robot.client import RobotClient
     from viam.components.sensor import Sensor as ViamSensor
     
     logger.debug(f"[LIVE] Fetching sensor data from Viam...")
     
     # Connect to Viam robot
-    opts = RobotClient.Options.with_api_key(
-        api_key=api_key,
-        api_key_id=api_key_id
-    )
-    robot = await RobotClient.at_address(robot_address, opts)
+    robot = await _connect_robot_with_backoff(robot_address, api_key, api_key_id)
     
     timestamp = datetime.utcnow()
     live_readings = {}

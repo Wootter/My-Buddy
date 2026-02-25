@@ -63,7 +63,7 @@ with app.app_context():
 # ==================== VIAM BACKGROUND SCHEDULER ====================
 
 def scheduled_viam_live_fetch():
-    """Fetch LIVE Viam sensor data (runs every 5 seconds) - does NOT save to database"""
+    """Fetch LIVE Viam sensor data (runs every 10 seconds) - does NOT save to database"""
     with app.app_context():
         from viam_integration import fetch_live_sensor_data
         live_data = fetch_live_sensor_data()
@@ -89,10 +89,10 @@ def scheduled_viam_fetch():
 scheduler = BackgroundScheduler()
 scheduler.start()
 
-# Schedule LIVE data fetch every 5 seconds (does NOT save to database)
+# Schedule LIVE data fetch every 10 seconds (does NOT save to database)
 scheduler.add_job(
     func=scheduled_viam_live_fetch,
-    trigger=IntervalTrigger(seconds=5),
+    trigger=IntervalTrigger(seconds=10),
     id='viam_live_fetch',
     name='Fetch LIVE Viam sensor data (broadcast via Socket.IO)',
     replace_existing=True
@@ -111,7 +111,7 @@ scheduler.add_job(
 atexit.register(lambda: scheduler.shutdown())
 
 logger.info("✓ Viam scheduler initialized")
-logger.info("  - Live data fetched every 5 seconds (broadcast via Socket.IO)")
+logger.info("  - Live data fetched every 10 seconds (broadcast via Socket.IO)")
 logger.info("  - Database data fetched and saved every hour at xx:00")
 
 
