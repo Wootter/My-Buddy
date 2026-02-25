@@ -195,7 +195,7 @@ body{
   display: block;
 }
 main{
-  padding: min(30px, 7%);
+  padding: 24px;
   transition: background-color 300ms ease-in-out, color 300ms ease-in-out;
 }
 main p{
@@ -207,7 +207,7 @@ main p{
   border: 1px solid var(--line-clr);
   border-radius: 1em;
   margin-bottom: 20px;
-  padding: min(3em, 15%);
+  padding: 24px;
   transition: background-color 300ms ease-in-out, color 300ms ease-in-out, border-color 300ms ease-in-out;
 
   h2, p { margin-top: 1em }
@@ -776,11 +776,11 @@ form > .remember-forgot {
     grid-template-columns: 1fr;
   }
   main{
-    padding: 2em 1em 60px 1em;
+    padding: 16px 12px 80px 12px;
   }
   .container{
     border: none;
-    padding: 0;
+    padding: 16px;
   }
   #sidebar{
     height: 60px;
