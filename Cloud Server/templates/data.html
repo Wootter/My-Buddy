@@ -274,6 +274,9 @@
             <div class="chart-wrapper" id="wrapper-{{ loop.index }}">
               <canvas id="chart-{{ loop.index }}" width="400" height="200"></canvas>
             </div>
+            <div class="chart-scrollbar-container">
+              <input type="range" class="chart-scrollbar" id="scrollbar-{{ loop.index }}" min="0" max="100" value="0">
+            </div>
           </div>
           {% endfor %}
 
@@ -429,6 +432,11 @@
                       console.log(`✓ Chart for ${sensor.name} uses responsive sizing (${totalDataPoints} points)`);
                     }
                     
+                    // Setup custom scrollbar for this chart
+                    const scrollbarId = `scrollbar-${index + 1}`;
+                    const scrollbar = document.getElementById(scrollbarId);
+                    const wrapper = document.getElementById(`wrapper-${index + 1}`);
+                    
                     const chart = new Chart(ctx, {
                       type: 'line',
                       data: {
@@ -516,6 +524,25 @@
                     
                     // Store chart reference for theme updates
                     activeCharts.push(chart);
+                    
+                    // Connect scrollbar to wrapper scroll position
+                    if (scrollbar && wrapper) {
+                      scrollbar.addEventListener('input', (e) => {
+                        const scrollPercent = e.target.value / 100;
+                        const scrollableWidth = wrapper.scrollWidth - wrapper.clientWidth;
+                        wrapper.scrollLeft = scrollableWidth * scrollPercent;
+                      });
+                      
+                      wrapper.addEventListener('scroll', () => {
+                        const scrollPercent = (wrapper.scrollLeft / (wrapper.scrollWidth - wrapper.clientWidth)) * 100;
+                        scrollbar.value = scrollPercent;
+                      });
+                      
+                      // Hide scrollbar if not needed
+                      if (wrapper.scrollWidth <= wrapper.clientWidth) {
+                        scrollbar.style.display = 'none';
+                      }
+                    }
                     
                     console.log(`✓ Chart rendered for ${sensor.name} with ${values.length} data points`);
                     
