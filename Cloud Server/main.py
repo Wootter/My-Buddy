@@ -783,8 +783,7 @@ def connect_device(user_robot_id):
 @login_required
 def get_robot_sensors(robot_id):
     """Get configurable robot components and their pin attributes from Viam config"""
-    from models import UserRobot, Robot
-    from viam.robot.client import RobotClient
+    from models import UserRobot, Robot, Sensor
     
     account_id = session['user_id']
     
@@ -795,7 +794,32 @@ def get_robot_sensors(robot_id):
     
     robot = Robot.query.get(robot_id)
 
+    robot_name = robot.robot_name if robot else f'Robot {robot_id}'
+
+    def _db_sensor_fallback():
+        db_sensors = Sensor.query.filter_by(robot_id=robot_id).all()
+        return [{
+            'id': s.id,
+            'name': s.name,
+            'sensor_type': s.sensor_type,
+            'api': None,
+            'model': s.sensor_type,
+            'pin_attributes': []
+        } for s in db_sensors]
+
     try:
+        from viam.robot.client import RobotClient
+
+        if not robot:
+            sensor_list = _db_sensor_fallback()
+            return jsonify({
+                'success': True,
+                'robot_id': robot_id,
+                'robot_name': robot_name,
+                'warning': 'Robot record not found locally, using fallback sensor list',
+                'sensors': sensor_list
+            })
+
         opts = RobotClient.Options.with_api_key(
             api_key=user_robot.get_viam_api_key(),
             api_key_id=user_robot.get_viam_api_key_id()
@@ -824,21 +848,32 @@ def get_robot_sensors(robot_id):
             sensor_list.append({
                 'id': component.name,
                 'name': component.name,
-                'sensor_type': component.model,
-                'api': component.api,
-                'model': component.model,
+                'sensor_type': str(component.model),
+                'api': str(component.api),
+                'model': str(component.model),
                 'pin_attributes': pin_attributes
             })
 
         robot_client.close()
+
+        if not sensor_list:
+            sensor_list = _db_sensor_fallback()
     except Exception as e:
         logger.error(f"Error fetching robot component config: {str(e)}")
-        return jsonify({'success': False, 'error': f'Failed to fetch robot configuration: {str(e)}'}), 500
+        sensor_list = _db_sensor_fallback()
+
+        return jsonify({
+            'success': True,
+            'robot_id': robot_id,
+            'robot_name': robot_name,
+            'warning': f'Using fallback sensor list because Viam config failed: {str(e)}',
+            'sensors': sensor_list
+        })
     
     return jsonify({
         'success': True,
         'robot_id': robot_id,
-        'robot_name': robot.robot_name,
+        'robot_name': robot_name,
         'sensors': sensor_list
     })
 

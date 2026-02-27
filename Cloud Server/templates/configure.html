@@ -156,12 +156,19 @@
       try {
         const response = await fetch(`/api/robot/${robotId}/sensors`);
         const data = await response.json();
-        
-        if (data.success && data.sensors.length > 0) {
+
+        if (!response.ok || !data.success) {
+          const apiError = data.error || 'Unable to load sensors for this robot';
+          document.getElementById('sensors-container').innerHTML = 
+            `<div class="empty-state">${apiError}</div>`;
+          return;
+        }
+
+        if (Array.isArray(data.sensors) && data.sensors.length > 0) {
           renderSensors(data.sensors);
         } else {
           document.getElementById('sensors-container').innerHTML = 
-            '<div class="empty-state">No sensors found for this robot</div>';
+            '<div class="empty-state">No components found for this robot</div>';
         }
       } catch (error) {
         console.error('Error loading sensors:', error);
