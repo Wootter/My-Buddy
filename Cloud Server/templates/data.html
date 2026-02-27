@@ -603,9 +603,10 @@
                   
                   console.log(`Chart successfully created: ${sensor.name} (ID: ${chartId})`);
                   
-                  // Setup scrollbar control with proper range
-                  const maxScroll = Math.max(0, totalDataPoints - viewportPoints);
-                  console.log(`[SCROLLBAR SETUP] ${sensor.name}: totalPoints=${totalDataPoints}, viewportPoints=${viewportPoints}, maxScroll=${maxScroll}`);
+                  // Setup scrollbar control with proper range (accounting for 2x jump increment)
+                  const jumpIncrement = 2; // Jump by 2 data points each scrollbar step
+                  const maxScroll = Math.max(0, Math.floor((totalDataPoints - viewportPoints) / jumpIncrement));
+                  console.log(`[SCROLLBAR SETUP] ${sensor.name}: totalPoints=${totalDataPoints}, viewportPoints=${viewportPoints}, jumpIncrement=${jumpIncrement}, maxScroll=${maxScroll}`);
                   
                   if (maxScroll > 0) {
                     // Dynamically set scrollbar max based on actual scroll range
@@ -614,7 +615,7 @@
                     console.log(`[SCROLLBAR] ${sensor.name}: Changed max from ${oldMax} to ${maxScroll}`);
                     
                     scrollbar.addEventListener('input', (e) => {
-                      viewportStart = parseInt(e.target.value);
+                      viewportStart = parseInt(e.target.value) * jumpIncrement; // Jump by 2 points at a time
                       viewportEnd = viewportStart + viewportPoints;
                       console.log(`[SCROLL] ${sensor.name}: position ${e.target.value}/${scrollbar.max}, viewport ${viewportStart}-${viewportEnd}`);
                       updateChartData();
