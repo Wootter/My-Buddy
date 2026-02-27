@@ -292,6 +292,22 @@
             const activeCharts = [];
             const chartInstances = {};
             
+            // Chart configuration template (applied to each chart instance)
+            const chartConfigTemplate = {
+              options: {
+                maintainAspectRatio: false,
+                responsive: false,
+                animation: {
+                  duration: 0 // Disable animations for smooth scrolling
+                },
+                scales: {
+                  y: {
+                    beginAtZero: true // Start Y-axis from zero
+                  }
+                }
+              }
+            };
+            
             // Get theme-aware colors
             function getThemeColors() {
               const isDark = !document.body.classList.contains('lightmode');
@@ -390,7 +406,7 @@
               // Calculate viewport size based on available screen space (responsive and precise)
               const screenWidth = window.innerWidth;
               const pointWidth = 60; // pixels per data point
-              const maxChartWidth = screenWidth * 0.8025; // Use all available space minus minimal padding
+              const maxChartWidth = screenWidth; // Use all available space minus minimal padding
               const viewportPoints = Math.max(8, Math.floor(maxChartWidth / pointWidth)); // How many points fit on screen
               const canvasWidth = viewportPoints * pointWidth; // Canvas exactly fits the calculated point space
               
@@ -576,6 +592,7 @@
                         },
                         y: {
                           display: true,
+                          beginAtZero: true, // Start from zero as per config template
                           min: yMin,
                           max: yMax, // Fixed Y scale across entire dataset
                           ticks: {
