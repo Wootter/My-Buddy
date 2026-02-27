@@ -390,7 +390,7 @@
               // Calculate viewport size based on available screen space (responsive and precise)
               const screenWidth = window.innerWidth;
               const pointWidth = 60; // pixels per data point
-              const maxChartWidth = screenWidth * 0.81; // Use all available space minus minimal padding
+              const maxChartWidth = screenWidth * 0.8025; // Use all available space minus minimal padding
               const viewportPoints = Math.max(8, Math.floor(maxChartWidth / pointWidth)); // How many points fit on screen
               const canvasWidth = viewportPoints * pointWidth; // Canvas exactly fits the calculated point space
               
