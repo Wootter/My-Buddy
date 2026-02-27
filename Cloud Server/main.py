@@ -21,10 +21,14 @@ import atexit
 import logging
 import asyncio
 import inspect
+import time
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
+
+_MACHINE_PART_ID_CACHE = {}
+_MACHINE_PART_CACHE_TTL_SECONDS = 15 * 60
 
 
 def resolve_maybe_async(value):
@@ -39,6 +43,26 @@ def resolve_maybe_async(value):
             return loop.run_until_complete(value)
         finally:
             loop.close()
+
+
+def get_cached_machine_part_id(robot_key):
+    cached = _MACHINE_PART_ID_CACHE.get(robot_key)
+    if not cached:
+        return None
+
+    machine_part_id, expires_at = cached
+    if time.time() > expires_at:
+        _MACHINE_PART_ID_CACHE.pop(robot_key, None)
+        return None
+
+    return machine_part_id
+
+
+def set_cached_machine_part_id(robot_key, machine_part_id):
+    _MACHINE_PART_ID_CACHE[robot_key] = (
+        machine_part_id,
+        time.time() + _MACHINE_PART_CACHE_TTL_SECONDS
+    )
 
 app = Flask(__name__,
             static_url_path='/static',
@@ -874,10 +898,16 @@ def get_robot_sensors(robot_id):
             api_key=user_robot.get_viam_api_key(),
             api_key_id=user_robot.get_viam_api_key_id()
         )
-        robot_client = resolve_maybe_async(RobotClient.at_address(robot.viam_robot_address, opts))
-        cloud_metadata = resolve_maybe_async(robot_client.get_cloud_metadata())
-        machine_part_id = cloud_metadata.machine_part_id
-        resolve_maybe_async(robot_client.close())
+
+        cache_key = f"{account_id}:{robot_id}"
+        machine_part_id = get_cached_machine_part_id(cache_key)
+
+        if not machine_part_id:
+            robot_client = resolve_maybe_async(RobotClient.at_address(robot.viam_robot_address, opts))
+            cloud_metadata = resolve_maybe_async(robot_client.get_cloud_metadata())
+            machine_part_id = cloud_metadata.machine_part_id
+            resolve_maybe_async(robot_client.close())
+            set_cached_machine_part_id(cache_key, machine_part_id)
 
         dial_options = DialOptions.with_api_key(
             user_robot.get_viam_api_key(),
@@ -984,10 +1014,16 @@ def update_component_pins(robot_id):
             api_key=user_robot.get_viam_api_key(),
             api_key_id=user_robot.get_viam_api_key_id()
         )
-        robot = resolve_maybe_async(RobotClient.at_address(user_robot.robot.viam_robot_address, opts))
-        cloud_metadata = resolve_maybe_async(robot.get_cloud_metadata())
-        machine_part_id = cloud_metadata.machine_part_id
-        resolve_maybe_async(robot.close())
+
+        cache_key = f"{account_id}:{robot_id}"
+        machine_part_id = get_cached_machine_part_id(cache_key)
+
+        if not machine_part_id:
+            robot = resolve_maybe_async(RobotClient.at_address(user_robot.robot.viam_robot_address, opts))
+            cloud_metadata = resolve_maybe_async(robot.get_cloud_metadata())
+            machine_part_id = cloud_metadata.machine_part_id
+            resolve_maybe_async(robot.close())
+            set_cached_machine_part_id(cache_key, machine_part_id)
 
         dial_options = DialOptions.with_api_key(
             user_robot.get_viam_api_key(),
@@ -1070,10 +1106,16 @@ def update_sensor_pins(sensor_id):
             api_key=user_robot.get_viam_api_key(),
             api_key_id=user_robot.get_viam_api_key_id()
         )
-        robot = resolve_maybe_async(RobotClient.at_address(user_robot.robot.viam_robot_address, opts))
-        cloud_metadata = resolve_maybe_async(robot.get_cloud_metadata())
-        machine_part_id = cloud_metadata.machine_part_id
-        resolve_maybe_async(robot.close())
+
+        cache_key = f"{account_id}:{sensor.robot_id}"
+        machine_part_id = get_cached_machine_part_id(cache_key)
+
+        if not machine_part_id:
+            robot = resolve_maybe_async(RobotClient.at_address(user_robot.robot.viam_robot_address, opts))
+            cloud_metadata = resolve_maybe_async(robot.get_cloud_metadata())
+            machine_part_id = cloud_metadata.machine_part_id
+            resolve_maybe_async(robot.close())
+            set_cached_machine_part_id(cache_key, machine_part_id)
 
         dial_options = DialOptions.with_api_key(
             user_robot.get_viam_api_key(),
