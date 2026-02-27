@@ -22,6 +22,7 @@ import logging
 import asyncio
 import inspect
 import time
+from threading import Lock
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
@@ -29,6 +30,8 @@ logger = logging.getLogger(__name__)
 
 _MACHINE_PART_ID_CACHE = {}
 _MACHINE_PART_CACHE_TTL_SECONDS = 15 * 60
+_ACTIVE_SOCKET_CLIENTS = 0
+_SOCKET_CLIENTS_LOCK = Lock()
 
 
 def resolve_maybe_async(value):
@@ -100,10 +103,30 @@ with app.app_context():
     import models  # noqa: F401
 
 
+@socketio.on('connect')
+def handle_socket_connect():
+    global _ACTIVE_SOCKET_CLIENTS
+    with _SOCKET_CLIENTS_LOCK:
+        _ACTIVE_SOCKET_CLIENTS += 1
+
+
+@socketio.on('disconnect')
+def handle_socket_disconnect():
+    global _ACTIVE_SOCKET_CLIENTS
+    with _SOCKET_CLIENTS_LOCK:
+        _ACTIVE_SOCKET_CLIENTS = max(0, _ACTIVE_SOCKET_CLIENTS - 1)
+
+
 # ==================== VIAM BACKGROUND SCHEDULER ====================
 
 def scheduled_viam_live_fetch():
     """Fetch LIVE Viam sensor data (runs every 10 seconds) - does NOT save to database"""
+    with _SOCKET_CLIENTS_LOCK:
+        active_clients = _ACTIVE_SOCKET_CLIENTS
+
+    if active_clients == 0:
+        return
+
     with app.app_context():
         from viam_integration import fetch_live_sensor_data
         live_data = fetch_live_sensor_data()

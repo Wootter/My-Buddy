@@ -79,6 +79,21 @@ async def _connect_robot_with_backoff(robot_address, api_key, api_key_id, attemp
     raise last_error
 
 
+async def _connect_robot_fast(robot_address, api_key, api_key_id, timeout_seconds=6.0):
+    """Fast-fail robot connect for live polling to prevent overlapping scheduler runs."""
+    return await asyncio.wait_for(
+        _connect_robot_with_backoff(
+            robot_address,
+            api_key,
+            api_key_id,
+            attempts=1,
+            base_delay=0.5,
+            max_delay=1.0,
+        ),
+        timeout=timeout_seconds,
+    )
+
+
 async def _fetch_viam_data_async(robot_id, api_key, api_key_id, robot_address):
     """Async function to fetch data from Viam robot."""
     from viam.components.sensor import Sensor as ViamSensor
@@ -182,8 +197,8 @@ async def _fetch_viam_data_async_live(robot_id, api_key, api_key_id, robot_addre
     
     logger.debug(f"[LIVE] Fetching sensor data from Viam...")
     
-    # Connect to Viam robot
-    robot = await _connect_robot_with_backoff(robot_address, api_key, api_key_id)
+    # Connect to Viam robot (fast-fail to keep scheduler responsive)
+    robot = await _connect_robot_fast(robot_address, api_key, api_key_id)
     
     timestamp = datetime.utcnow()
     live_readings = {}
