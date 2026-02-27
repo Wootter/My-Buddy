@@ -330,18 +330,19 @@
               console.log('✓ Chart.js library loaded');
               
               const chartData = {{ charts|tojson }};
+              console.log('Raw chart data from server:', JSON.stringify(chartData, null, 2));
               console.log('Chart data available:', chartData && chartData.length > 0 ? `${chartData.length} sensors` : 'none');
               
               if (!chartData || chartData.length === 0) {
-                console.log('No chart data available');
+                console.log('No chart data available - check if database has sensor data');
                 return;
               }
               
-              // Create unified timeline from all sensor data
               const allTimestamps = new Set();
               const dataByTimestamp = {};
               
               chartData.forEach(sensor => {
+                console.log(`📈 Processing sensor: ${sensor.name}, type: ${sensor.type}, data points: ${sensor.data ? sensor.data.length : 0}`);
                 if (sensor.data && sensor.data.length > 0) {
                   sensor.data.forEach(d => {
                     allTimestamps.add(d.timestamp);
@@ -354,7 +355,7 @@
               });
               
               if (allTimestamps.size === 0) {
-                console.log('No timestamps found in sensor data');
+                console.log('No timestamps found in sensor data - database may be empty');
                 return;
               }
               
@@ -375,7 +376,7 @@
               });
               
               const totalDataPoints = sortedTimestamps.length;
-              console.log(`Creating ${chartData.length} charts from ${totalDataPoints} unique timestamps`);
+              console.log(`Data processing complete: ${totalDataPoints} unique timestamps found`);
               
               // Calculate viewport size (points that fit on screen)
               const screenWidth = window.innerWidth;
@@ -413,6 +414,8 @@
                   const allValues = sortedTimestamps.map(ts => timestampToValue[ts] !== undefined ? timestampToValue[ts] : null);
                   const unit = sensor.data && sensor.data[0] ? sensor.data[0].unit || '' : '';
                   const isMotionSensor = sensor.name.includes('Motion');
+                  
+                  console.log(`Creating chart: ${sensor.name}, ${allValues.filter(v => v !== null).length} values, unit: ${unit}`);
                   
                   // Calculate Y-axis scale based on ALL data (not just viewport)
                   let yMin = 0;
@@ -556,6 +559,8 @@
                   
                   chartInstances[chartId] = chart;
                   activeCharts.push(chart);
+                  
+                  console.log(`Chart successfully created: ${sensor.name} (ID: ${chartId})`);
                   
                   // Setup scrollbar control
                   if (totalDataPoints > viewportPoints) {
