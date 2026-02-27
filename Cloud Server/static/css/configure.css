@@ -9,7 +9,7 @@
 .robot-selector {
   margin-bottom: 20px;
   padding: 12px;
-  background: var(--card-bg);
+  background: pink;
   border-radius: 6px;
   border: 1px solid var(--border-color);
 }
