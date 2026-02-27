@@ -387,14 +387,14 @@
               console.log(`Data processing complete: ${totalDataPoints} unique timestamps found`);
               console.log(`[INIT] Total sensors to render: ${chartData.length}`);
               
-              // Calculate viewport size based on available screen space (not exceeding viewport width)
+              // Calculate viewport size based on available screen space (responsive and precise)
               const screenWidth = window.innerWidth;
-              const maxChartWidth = screenWidth * 0.75; // 75% of screen width
               const pointWidth = 60; // pixels per data point
+              const maxChartWidth = screenWidth - 20; // Use all available space minus minimal padding
               const viewportPoints = Math.max(8, Math.floor(maxChartWidth / pointWidth)); // How many points fit on screen
               const canvasWidth = viewportPoints * pointWidth; // Canvas exactly fits the calculated point space
               
-              console.log(`[INIT] Screen=${screenWidth}px, maxChart=${maxChartWidth}px, pointWidth=${pointWidth}px, viewportPoints=${viewportPoints}, canvasWidth=${canvasWidth}px`);
+              console.log(`[INIT] Screen=${screenWidth}px, available=${maxChartWidth}px, pointWidth=${pointWidth}px, viewportPoints=${viewportPoints}, canvasWidth=${canvasWidth}px, unused=${maxChartWidth - canvasWidth}px`);
               
               chartData.forEach((sensor, index) => {
                 console.log(`[INIT] Processing sensor ${index + 1}/${chartData.length}: ${sensor.name}`);
