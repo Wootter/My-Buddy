@@ -19,10 +19,26 @@ from apscheduler.triggers.interval import IntervalTrigger
 from apscheduler.triggers.cron import CronTrigger
 import atexit
 import logging
+import asyncio
+import inspect
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
+
+
+def resolve_maybe_async(value):
+    if not inspect.isawaitable(value):
+        return value
+
+    try:
+        return asyncio.run(value)
+    except RuntimeError:
+        loop = asyncio.new_event_loop()
+        try:
+            return loop.run_until_complete(value)
+        finally:
+            loop.close()
 
 app = Flask(__name__,
             static_url_path='/static',
@@ -754,8 +770,8 @@ def connect_device(user_robot_id):
             api_key_id=user_robot.viam_api_key_id
         )
         
-        robot = RobotClient.at_address(user_robot.robot.viam_robot_address, opts)
-        robot.close()
+        robot = resolve_maybe_async(RobotClient.at_address(user_robot.robot.viam_robot_address, opts))
+        resolve_maybe_async(robot.close())
         
         # Update robot status
         user_robot.robot.status = 'online'
@@ -856,8 +872,8 @@ def get_robot_sensors(robot_id):
             api_key=user_robot.get_viam_api_key(),
             api_key_id=user_robot.get_viam_api_key_id()
         )
-        robot_client = RobotClient.at_address(robot.viam_robot_address, opts)
-        config = robot_client.get_config()
+        robot_client = resolve_maybe_async(RobotClient.at_address(robot.viam_robot_address, opts))
+        config = resolve_maybe_async(robot_client.get_config())
 
         sensor_list = []
         for component in config.components:
@@ -894,7 +910,7 @@ def get_robot_sensors(robot_id):
                 'pin_attributes': pin_attributes
             })
 
-        robot_client.close()
+        resolve_maybe_async(robot_client.close())
 
         if not sensor_list:
             sensor_list = _db_sensor_fallback()
@@ -945,8 +961,8 @@ def update_component_pins(robot_id):
             api_key=user_robot.get_viam_api_key(),
             api_key_id=user_robot.get_viam_api_key_id()
         )
-        robot = RobotClient.at_address(user_robot.robot.viam_robot_address, opts)
-        config = robot.get_config()
+        robot = resolve_maybe_async(RobotClient.at_address(user_robot.robot.viam_robot_address, opts))
+        config = resolve_maybe_async(robot.get_config())
 
         target_component = None
         for component in config.components:
@@ -955,7 +971,7 @@ def update_component_pins(robot_id):
                 break
 
         if not target_component:
-            robot.close()
+            resolve_maybe_async(robot.close())
             return jsonify({'success': False, 'error': f'Component not found: {component_name}'}), 404
 
         current_attributes = dict(getattr(target_component, 'attributes', {}) or {})
@@ -976,8 +992,8 @@ def update_component_pins(robot_id):
 
         target_component.attributes = current_attributes
 
-        robot.reconfigure_config(config)
-        robot.close()
+        resolve_maybe_async(robot.reconfigure_config(config))
+        resolve_maybe_async(robot.close())
 
         return jsonify({
             'success': True,
@@ -1017,10 +1033,10 @@ def update_sensor_pins(sensor_id):
             api_key=user_robot.get_viam_api_key(),
             api_key_id=user_robot.get_viam_api_key_id()
         )
-        robot = RobotClient.at_address(user_robot.robot.viam_robot_address, opts)
+        robot = resolve_maybe_async(RobotClient.at_address(user_robot.robot.viam_robot_address, opts))
         
         # Get current robot config
-        config = robot.get_config()
+        config = resolve_maybe_async(robot.get_config())
         
         # Find and update the component's attributes with new pins
         for component in config.components:
@@ -1044,8 +1060,8 @@ def update_sensor_pins(sensor_id):
                 break
         
         # Update the robot configuration in Viam
-        robot.reconfigure_config(config)
-        robot.close()
+        resolve_maybe_async(robot.reconfigure_config(config))
+        resolve_maybe_async(robot.close())
         
         return jsonify({
             'success': True,
