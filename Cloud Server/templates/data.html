@@ -330,12 +330,12 @@
             
             function initCharts() {
               if (typeof Chart === 'undefined') {
-                console.warn('Chart.js not yet available, retrying in 100ms...');
+                console.warn('⚠️ Chart.js not yet available, retrying in 100ms...');
                 setTimeout(initCharts, 100);
                 return;
               }
               
-              console.log('✓ Chart.js library loaded');
+              console.log('✅ Chart.js library loaded successfully');
               
               const chartData = {{ charts|tojson }};
               console.log('Raw chart data from server:', JSON.stringify(chartData, null, 2));
@@ -385,12 +385,15 @@
               
               const totalDataPoints = sortedTimestamps.length;
               console.log(`Data processing complete: ${totalDataPoints} unique timestamps found`);
+              console.log(`[INIT] Total sensors to render: ${chartData.length}`);
               
               // Calculate viewport size (points that fit on screen)
               const screenWidth = window.innerWidth;
               const viewportPoints = Math.max(8, Math.floor((screenWidth - 100) / 60)); // ~60px per point
+              console.log(`[INIT] Viewport settings: screenWidth=${screenWidth}, viewportPoints=${viewportPoints}`);
               
               chartData.forEach((sensor, index) => {
+                console.log(`[INIT] Processing sensor ${index + 1}/${chartData.length}: ${sensor.name}`);
                 try {
                   const chartId = `chart-${index + 1}`;
                   const scrollbarId = `scrollbar-${index + 1}`;
@@ -400,10 +403,20 @@
                   const scrollbar = document.getElementById(scrollbarId);
                   const wrapper = document.getElementById(wrapperId);
                   
-                  if (!canvasEl || !scrollbar || !wrapper) {
-                    console.error(`Canvas, scrollbar or wrapper not found for chart ${chartId}`);
+                  if (!canvasEl) {
+                    console.error(`[ERROR] Canvas element #${chartId} not found for sensor: ${sensor.name}`);
                     return;
                   }
+                  if (!scrollbar) {
+                    console.error(`[ERROR] Scrollbar element #${scrollbarId} not found for sensor: ${sensor.name}`);
+                    return;
+                  }
+                  if (!wrapper) {
+                    console.error(`[ERROR] Wrapper element #${wrapperId} not found for sensor: ${sensor.name}`);
+                    return;
+                  }
+                  
+                  console.log(`[FOUND] Elements for chart ${index + 1}: canvas=${!!canvasEl}, scrollbar=${!!scrollbar}, wrapper=${!!wrapper}`);
                   
                   const ctx = canvasEl.getContext('2d');
                   if (!ctx) {
@@ -587,18 +600,28 @@
                   
                   console.log(`Chart successfully created: ${sensor.name} (ID: ${chartId})`);
                   
-                  // Setup scrollbar control
-                  if (totalDataPoints > viewportPoints) {
+                  // Setup scrollbar control with proper range
+                  const maxScroll = Math.max(0, totalDataPoints - viewportPoints);
+                  console.log(`[SCROLLBAR SETUP] ${sensor.name}: totalPoints=${totalDataPoints}, viewportPoints=${viewportPoints}, maxScroll=${maxScroll}`);
+                  
+                  if (maxScroll > 0) {
+                    // Dynamically set scrollbar max based on actual scroll range
+                    const oldMax = scrollbar.max;
+                    scrollbar.max = maxScroll;
+                    console.log(`[SCROLLBAR] ${sensor.name}: Changed max from ${oldMax} to ${maxScroll}`);
+                    
                     scrollbar.addEventListener('input', (e) => {
-                      const scrollPercent = parseFloat(e.target.value) / 100;
-                      const maxStart = totalDataPoints - viewportPoints;
-                      viewportStart = Math.floor(scrollPercent * maxStart);
+                      viewportStart = parseInt(e.target.value);
                       viewportEnd = viewportStart + viewportPoints;
+                      console.log(`[SCROLL] ${sensor.name}: position ${e.target.value}/${scrollbar.max}, viewport ${viewportStart}-${viewportEnd}`);
                       updateChartData();
                     });
+                    console.log(`[SCROLLBAR] ${sensor.name}: max scroll range = ${maxScroll}, viewport = ${viewportPoints}/${totalDataPoints}`);
                   } else {
-                    // Hide scrollbar if all data fits
+                    // Hide scrollbar if all data fits in viewport
                     scrollbar.style.display = 'none';
+                    scrollbar.parentElement.style.display = 'none';
+                    console.log(`[SCROLLBAR] ${sensor.name}: no scrolling needed (${totalDataPoints} points fit in viewport of ${viewportPoints})`);
                   }
                   
                   console.log(`✓ Chart rendered for ${sensor.name} with ${totalDataPoints} total points, viewport: ${viewportPoints}`);
