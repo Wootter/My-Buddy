@@ -6,7 +6,6 @@
   <link rel="icon" type="image/png" href="{{ url_for('static', filename='picture/Logo\'s/Logo White.png') }}">
   <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
   <link rel="stylesheet" href="{{ url_for('static', filename='css/data.css') }}">
-  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js" defer></script>
   <script>
     // Apply theme immediately to prevent flash
     (function() {
@@ -281,15 +280,17 @@
           {% endfor %}
 
           <script>
-            // Store all chart instances for theme updates
+            // ==================== CHART.JS SCROLLABLE CHART IMPLEMENTATION ====================
             const activeCharts = [];
+            const chartInstances = {};
             
             // Get theme-aware colors
             function getThemeColors() {
               const isDark = !document.body.classList.contains('lightmode');
               return {
                 textColor: isDark ? '#e8eaed' : '#0f1419',
-                gridColor: isDark ? 'rgba(255, 255, 255, 0.1)' : 'rgba(0, 0, 0, 0.1)'
+                gridColor: isDark ? 'rgba(255, 255, 255, 0.1)' : 'rgba(0, 0, 0, 0.1)',
+                backgroundColor: isDark ? 'rgba(0, 0, 0, 0.2)' : 'rgba(255, 255, 255, 0.1)'
               };
             }
             
@@ -297,24 +298,29 @@
             function updateChartsTheme() {
               const colors = getThemeColors();
               activeCharts.forEach(chart => {
-                chart.options.plugins.legend.labels.color = colors.textColor;
-                chart.options.scales.x.ticks.color = colors.textColor;
-                chart.options.scales.y.ticks.color = colors.textColor;
-                chart.options.scales.x.grid.color = colors.gridColor;
-                chart.options.scales.y.grid.color = colors.gridColor;
+                if (chart.options && chart.options.plugins) {
+                  chart.options.plugins.legend.labels.color = colors.textColor;
+                }
+                if (chart.options && chart.options.scales) {
+                  if (chart.options.scales.x) {
+                    chart.options.scales.x.ticks.color = colors.textColor;
+                    chart.options.scales.x.grid.color = colors.gridColor;
+                  }
+                  if (chart.options.scales.y) {
+                    chart.options.scales.y.ticks.color = colors.textColor;
+                    chart.options.scales.y.grid.color = colors.gridColor;
+                  }
+                }
                 chart.update();
               });
             }
             
-            // Listen for theme changes
             const themeObserver = new MutationObserver(() => {
               updateChartsTheme();
             });
             themeObserver.observe(document.body, { attributes: true, attributeFilter: ['class'] });
             
-            // Wait for Chart.js to be available
             function initCharts() {
-              // Check if Chart.js is loaded
               if (typeof Chart === 'undefined') {
                 console.warn('Chart.js not yet available, retrying in 100ms...');
                 setTimeout(initCharts, 100);
@@ -323,244 +329,264 @@
               
               console.log('✓ Chart.js library loaded');
               
-              // Chart.js configuration - Load data from server
               const chartData = {{ charts|tojson }};
               console.log('Chart data available:', chartData && chartData.length > 0 ? `${chartData.length} sensors` : 'none');
               
               if (!chartData || chartData.length === 0) {
                 console.log('No chart data available');
-              } else {
-                // Create a unified timeline from all sensor data
-                const allTimestamps = new Set();
-                chartData.forEach(sensor => {
+                return;
+              }
+              
+              // Create unified timeline from all sensor data
+              const allTimestamps = new Set();
+              const dataByTimestamp = {};
+              
+              chartData.forEach(sensor => {
+                if (sensor.data && sensor.data.length > 0) {
+                  sensor.data.forEach(d => {
+                    allTimestamps.add(d.timestamp);
+                    if (!dataByTimestamp[d.timestamp]) {
+                      dataByTimestamp[d.timestamp] = {};
+                    }
+                    dataByTimestamp[d.timestamp][sensor.name] = d.value;
+                  });
+                }
+              });
+              
+              if (allTimestamps.size === 0) {
+                console.log('No timestamps found in sensor data');
+                return;
+              }
+              
+              // Sort timestamps chronologically
+              const sortedTimestamps = Array.from(allTimestamps).sort((a, b) => {
+                return new Date(a) - new Date(b);
+              });
+              
+              const allLabels = sortedTimestamps.map(ts => {
+                const d = new Date(ts);
+                const day = String(d.getDate()).padStart(2, '0');
+                const month = String(d.getMonth() + 1).padStart(2, '0');
+                const year = String(d.getFullYear()).slice(-2);
+                const hour = d.getHours();
+                const ampm = hour >= 12 ? 'pm' : 'am';
+                const hour12 = hour % 12 || 12;
+                return `${day}/${month}/${year} ${hour12}${ampm}`;
+              });
+              
+              const totalDataPoints = sortedTimestamps.length;
+              console.log(`Creating ${chartData.length} charts from ${totalDataPoints} unique timestamps`);
+              
+              // Calculate viewport size (points that fit on screen)
+              const screenWidth = window.innerWidth;
+              const viewportPoints = Math.max(8, Math.floor((screenWidth - 100) / 60)); // ~60px per point
+              
+              chartData.forEach((sensor, index) => {
+                try {
+                  const chartId = `chart-${index + 1}`;
+                  const scrollbarId = `scrollbar-${index + 1}`;
+                  const wrapperId = `wrapper-${index + 1}`;
+                  
+                  const canvasEl = document.getElementById(chartId);
+                  const scrollbar = document.getElementById(scrollbarId);
+                  const wrapper = document.getElementById(wrapperId);
+                  
+                  if (!canvasEl || !scrollbar || !wrapper) {
+                    console.error(`Canvas, scrollbar or wrapper not found for chart ${chartId}`);
+                    return;
+                  }
+                  
+                  const ctx = canvasEl.getContext('2d');
+                  if (!ctx) {
+                    console.error(`Could not get 2D context for canvas #${chartId}`);
+                    return;
+                  }
+                  
+                  // Prepare data values for this sensor
+                  const timestampToValue = {};
                   if (sensor.data && sensor.data.length > 0) {
                     sensor.data.forEach(d => {
-                      allTimestamps.add(d.timestamp);
+                      timestampToValue[d.timestamp] = d.value;
                     });
                   }
-                });
-                
-                if (allTimestamps.size === 0) {
-                  console.log('No timestamps found in sensor data');
-                  return;
-                }
-                
-                // Sort timestamps chronologically by actual date, not string
-                const sortedTimestamps = Array.from(allTimestamps).sort((a, b) => {
-                  return new Date(a) - new Date(b);
-                });
-                
-                const sharedLabels = sortedTimestamps.map(ts => {
-                  const d = new Date(ts);
-                  const day = String(d.getDate()).padStart(2, '0');
-                  const month = String(d.getMonth() + 1).padStart(2, '0');
-                  const year = String(d.getFullYear()).slice(-2);
-                  const hour = d.getHours();
-                  const ampm = hour >= 12 ? 'pm' : 'am';
-                  const hour12 = hour % 12 || 12;
-                  return `${day}/${month}/${year} ${hour12}${ampm}`;
-                });
-                
-                console.log(`Creating ${chartData.length} charts from ${sortedTimestamps.length} unique timestamps`);
-                
-                // Create charts with shared X-axis
-                chartData.forEach((sensor, index) => {
-                  try {
-                    const chartId = `chart-${index + 1}`;
-                    const canvasEl = document.getElementById(chartId);
+                  
+                  const allValues = sortedTimestamps.map(ts => timestampToValue[ts] !== undefined ? timestampToValue[ts] : null);
+                  const unit = sensor.data && sensor.data[0] ? sensor.data[0].unit || '' : '';
+                  const isMotionSensor = sensor.name.includes('Motion');
+                  
+                  // Calculate Y-axis scale based on ALL data (not just viewport)
+                  let yMin = 0;
+                  let yMax = 100;
+                  let yFormatter = null;
+                  
+                  if (isMotionSensor) {
+                    yMax = 1;
+                    yFormatter = (value) => value >= 0.5 ? 'movement' : 'no movement';
+                  } else {
+                    const maxValue = Math.max(...allValues.filter(v => v !== null));
+                    yMax = isFinite(maxValue) ? Math.ceil(maxValue * 1.1) : 100;
+                  }
+                  
+                  const colors = ['rgb(75, 192, 192)', 'rgb(255, 159, 64)', 'rgb(255, 99, 132)', 'rgb(54, 162, 235)', 'rgb(153, 102, 255)'];
+                  const color = colors[index % colors.length];
+                  const themeColors = getThemeColors();
+                  
+                  // Set initial viewport
+                  let viewportStart = 0;
+                  let viewportEnd = Math.min(viewportPoints, totalDataPoints);
+                  
+                  function updateChartData() {
+                    // Get slice of data for current viewport
+                    const viewportLabels = allLabels.slice(viewportStart, viewportEnd);
+                    const viewportValues = allValues.slice(viewportStart, viewportEnd);
                     
-                    if (!canvasEl) {
-                      console.error(`Canvas element #${chartId} not found in DOM`);
-                      return;
+                    // Set canvas width based on viewport or total data
+                    const pointWidth = 60;
+                    const canvasWidth = Math.max(window.innerWidth - 100, viewportPoints * pointWidth);
+                    canvasEl.width = canvasWidth;
+                    canvasEl.height = 180;
+                    
+                    // Update chart instance with new data
+                    if (chartInstances[chartId]) {
+                      chartInstances[chartId].data.labels = viewportLabels;
+                      chartInstances[chartId].data.datasets[0].data = viewportValues;
+                      chartInstances[chartId].update('none'); // No animation for smooth interactions
                     }
-                    
-                    console.log(`Initializing chart for ${sensor.name} (canvas: #${chartId})`);
-                    
-                    const ctx = canvasEl.getContext('2d');
-                    if (!ctx) {
-                      console.error(`Could not get 2D context for canvas #${chartId}`);
-                      return;
-                    }
-                    
-                    // Map sensor data to the shared timeline
-                    const timestampToValue = {};
-                    if (sensor.data && sensor.data.length > 0) {
-                      sensor.data.forEach(d => {
-                        timestampToValue[d.timestamp] = d.value;
-                      });
-                    }
-                    
-                    const values = sortedTimestamps.map(ts => timestampToValue[ts] !== undefined ? timestampToValue[ts] : null);
-                    const unit = sensor.data && sensor.data[0] ? sensor.data[0].unit || '' : '';
-                    
-                    // Determine if this is a motion sensor
-                    const isMotionSensor = sensor.name.includes('Motion');
-                    
-                    // Calculate dynamic max for y-axis
-                    let yMin = 0;
-                    let yMax = 100;
-                    let yFormatter = null;
-                    
-                    if (isMotionSensor) {
-                      yMax = 1;
-                      yFormatter = (value) => value >= 0.5 ? 'movement' : 'no movement';
-                    } else {
-                      // Find max value in dataset and add 10% padding
-                      const maxValue = Math.max(...values.filter(v => v !== null));
-                      yMax = isFinite(maxValue) ? Math.ceil(maxValue * 1.1) : 100;
-                    }
-                    
-                    const colors = ['rgb(75, 192, 192)', 'rgb(255, 159, 64)', 'rgb(255, 99, 132)', 'rgb(54, 162, 235)', 'rgb(153, 102, 255)'];
-                    const color = colors[index % colors.length];
-                    const themeColors = getThemeColors();
-                    
-                    // ==================== SCROLLABLE CHARTS - PROPER CSS METHOD ====================
-                    const maxDataPoints = window.calculateMaxDataPoints();
-                    const totalDataPoints = sortedTimestamps.length;
-                    const pointWidth = 60; // pixels per data point for readability
-                    const isMobile = window.innerWidth < 768;
-                    
-                    // Set canvas dimensions (wrapper stays at 100% for individual scrolling)
-                    if (totalDataPoints > maxDataPoints && !isMobile) {
-                      // DESKTOP: Set explicit canvas width for internal scrolling within wrapper
-                      const finalCanvasWidth = totalDataPoints * pointWidth;
-                      canvasEl.width = finalCanvasWidth;
-                      canvasEl.height = 180;
-                      console.log(`✓ Chart for ${sensor.name} is scrollable (${totalDataPoints} points, width: ${finalCanvasWidth}px)`);
-                    } else {
-                      // MOBILE & FITS ON SCREEN: Canvas stays responsive within wrapper
-                      console.log(`✓ Chart for ${sensor.name} uses responsive sizing (${totalDataPoints} points)`);
-                    }
-                    
-                    // Setup custom scrollbar for this chart
-                    const scrollbarId = `scrollbar-${index + 1}`;
-                    const scrollbar = document.getElementById(scrollbarId);
-                    const wrapper = document.getElementById(`wrapper-${index + 1}`);
-                    
-                    const chart = new Chart(ctx, {
-                      type: 'line',
-                      data: {
-                        labels: sharedLabels,
-                        datasets: [{
-                          label: `${sensor.name} (${unit})`,
-                          data: values,
-                          borderColor: color,
-                          backgroundColor: color.replace('rgb', 'rgba').replace(')', ', 0.2)'),
-                          tension: isMotionSensor ? 0 : 0.3,
-                          stepped: isMotionSensor ? 'middle' : false,
-                          fill: true,
-                          spanGaps: true,
-                          pointRadius: 4,
-                          pointHoverRadius: 6,
-                          borderWidth: 2
-                        }]
+                  }
+                  
+                  // Create chart
+                  const chart = new Chart(ctx, {
+                    type: 'line',
+                    data: {
+                      labels: allLabels.slice(0, viewportEnd),
+                      datasets: [{
+                        label: `${sensor.name} (${unit})`,
+                        data: allValues.slice(0, viewportEnd),
+                        borderColor: color,
+                        backgroundColor: color.replace('rgb', 'rgba').replace(')', ', 0.15)'),
+                        tension: isMotionSensor ? 0 : 0.4,
+                        stepped: isMotionSensor ? 'middle' : false,
+                        fill: true,
+                        spanGaps: true,
+                        pointRadius: 4,
+                        pointHoverRadius: 6,
+                        pointBackgroundColor: color,
+                        borderWidth: 2,
+                        clip: false
+                      }]
+                    },
+                    options: {
+                      responsive: false,
+                      maintainAspectRatio: false,
+                      animation: {
+                        duration: 0 // Disable animations for smooth scrolling
                       },
-                      options: {
-                        responsive: true,
-                        maintainAspectRatio: false,
-                        animation: {
-                          duration: 500
-                        },
-                        interaction: {
-                          mode: 'index',
-                          intersect: false
-                        },
-                        plugins: {
-                          legend: {
-                            display: true,
-                            labels: {
-                              color: themeColors.textColor,
-                              font: { size: 12 }
-                            }
-                          },
-                          title: {
-                            display: false
-                          },
-                          tooltip: {
-                            callbacks: {
-                              label: function(context) {
-                                if (isMotionSensor) {
-                                  return yFormatter(context.parsed.y);
-                                }
-                                return context.parsed.y.toFixed(2) + ' ' + unit;
-                              }
-                            }
+                      interaction: {
+                        mode: 'index',
+                        intersect: false
+                      },
+                      plugins: {
+                        legend: {
+                          display: true,
+                          labels: {
+                            color: themeColors.textColor,
+                            font: { size: 12, weight: '500' },
+                            padding: 12,
+                            usePointStyle: true,
+                            pointStyle: 'circle'
                           }
                         },
-                        scales: {
-                          x: {
-                            display: true,
-                            ticks: {
-                              color: themeColors.textColor,
-                              maxTicksLimit: 12,
-                              autoSkip: true
-                            },
-                            grid: {
-                              color: themeColors.gridColor,
-                              display: true
-                            }
-                          },
-                          y: {
-                            display: true,
-                            min: yMin,
-                            max: yMax,
-                            ticks: {
-                              color: themeColors.textColor,
-                              stepSize: isMotionSensor ? 1 : undefined,
-                              callback: isMotionSensor ? function(value) {
-                                if (value === 0) return 'no movement';
-                                if (value === 1) return 'movement';
-                                return '';
-                              } : undefined
-                            },
-                            grid: {
-                              color: themeColors.gridColor,
-                              display: true
+                        tooltip: {
+                          backgroundColor: 'rgba(0, 0, 0, 0.8)',
+                          padding: 12,
+                          titleFont: { size: 13, weight: 'bold' },
+                          bodyFont: { size: 12 },
+                          borderColor: color,
+                          borderWidth: 1,
+                          cornerRadius: 6,
+                          callbacks: {
+                            label: function(context) {
+                              if (isMotionSensor) {
+                                return yFormatter(context.parsed.y);
+                              }
+                              return context.parsed.y.toFixed(2) + ' ' + unit;
                             }
                           }
                         }
-                      }
-                    });
-                    
-                    // Store chart reference for theme updates
-                    activeCharts.push(chart);
-                    
-                    // Connect scrollbar to wrapper scroll position
-                    if (scrollbar && wrapper) {
-                      scrollbar.addEventListener('input', (e) => {
-                        const scrollPercent = e.target.value / 100;
-                        const scrollableWidth = wrapper.scrollWidth - wrapper.clientWidth;
-                        wrapper.scrollLeft = scrollableWidth * scrollPercent;
-                      });
-                      
-                      wrapper.addEventListener('scroll', () => {
-                        const scrollPercent = (wrapper.scrollLeft / (wrapper.scrollWidth - wrapper.clientWidth)) * 100;
-                        scrollbar.value = scrollPercent;
-                      });
-                      
-                      // Hide scrollbar if not needed
-                      if (wrapper.scrollWidth <= wrapper.clientWidth) {
-                        scrollbar.style.display = 'none';
+                      },
+                      scales: {
+                        x: {
+                          display: true,
+                          type: 'category',
+                          ticks: {
+                            color: themeColors.textColor,
+                            maxTicksLimit: 8,
+                            autoSkip: true,
+                            font: { size: 11 }
+                          },
+                          grid: {
+                            color: themeColors.gridColor,
+                            display: true,
+                            drawBorder: true
+                          }
+                        },
+                        y: {
+                          display: true,
+                          min: yMin,
+                          max: yMax, // Fixed Y scale across entire dataset
+                          ticks: {
+                            color: themeColors.textColor,
+                            stepSize: isMotionSensor ? 1 : undefined,
+                            font: { size: 11 },
+                            callback: isMotionSensor ? function(value) {
+                              if (value === 0) return 'no movement';
+                              if (value === 1) return 'movement';
+                              return '';
+                            } : undefined
+                          },
+                          grid: {
+                            color: themeColors.gridColor,
+                            display: true,
+                            drawBorder: true
+                          }
+                        }
                       }
                     }
-                    
-                    console.log(`✓ Chart rendered for ${sensor.name} with ${values.length} data points`);
-                    
-                  } catch (e) {
-                    console.error(`Error creating chart for sensor at index ${index}:`, e);
-                    console.error('Stack:', e.stack);
+                  });
+                  
+                  chartInstances[chartId] = chart;
+                  activeCharts.push(chart);
+                  
+                  // Setup scrollbar control
+                  if (totalDataPoints > viewportPoints) {
+                    scrollbar.addEventListener('input', (e) => {
+                      const scrollPercent = parseFloat(e.target.value) / 100;
+                      const maxStart = totalDataPoints - viewportPoints;
+                      viewportStart = Math.floor(scrollPercent * maxStart);
+                      viewportEnd = viewportStart + viewportPoints;
+                      updateChartData();
+                    });
+                  } else {
+                    // Hide scrollbar if all data fits
+                    scrollbar.style.display = 'none';
                   }
-                });
-              }
+                  
+                  console.log(`✓ Chart rendered for ${sensor.name} with ${totalDataPoints} total points, viewport: ${viewportPoints}`);
+                  
+                } catch (e) {
+                  console.error(`Error creating chart for sensor at index ${index}:`, e);
+                }
+              });
             }
             
-            // Initialize charts when DOM is ready AND Chart.js is loaded
+            // Initialize charts when DOM is ready and Chart.js is loaded
             if (document.readyState === 'loading') {
               document.addEventListener('DOMContentLoaded', initCharts);
             } else {
               initCharts();
             }
           </script>
+
         {% else %}
           <div class="no-data">
             <h3>No sensor data available yet</h3>
@@ -568,6 +594,7 @@
             <p>API endpoint: <code>POST /api/sensor-data/upload</code></p>
           </div>
         {% endif %}
+
       {% else %}
         <div class="no-data">
           <h3>No sensors configured</h3>
