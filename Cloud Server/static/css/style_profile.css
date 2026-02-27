@@ -4,29 +4,29 @@
 
 /* Info Items */
 .info-item {
-  margin-bottom: 20px;
-  padding-bottom: 20px;
+  margin-bottom: 14px;
+  padding-bottom: 14px;
   border-bottom: 1px solid var(--line-clr);
 }
 
 .info-item:last-child {
   border-bottom: none;
-  margin-bottom: 15px;
+  margin-bottom: 10px;
   padding-bottom: 0;
 }
 
 .info-item label {
   display: block;
-  font-size: 12px;
+  font-size: 11px;
   color: var(--secondary-text-clr);
   text-transform: uppercase;
   font-weight: 600;
-  letter-spacing: 0.5px;
-  margin-bottom: 8px;
+  letter-spacing: 0.4px;
+  margin-bottom: 6px;
 }
 
 .info-item p {
-  font-size: 16px;
+  font-size: 14px;
   color: var(--text-clr);
   margin: 0;
   font-weight: 500;
@@ -41,43 +41,34 @@
 .device-item {
   display: flex;
   align-items: center;
-  gap: 15px;
-  padding: 15px;
+  gap: 12px;
+  padding: 12px;
   background-color: var(--base-clr);
-  border-radius: 8px;
-  margin-bottom: 12px;
+  border-radius: 6px;
+  margin-bottom: 10px;
   transition: all 200ms ease;
 }
 
-.device-item:hover {
-  background-color: rgba(94, 99, 255, 0.05);
-  border: 1px solid rgba(94, 99, 255, 0.2);
-}
-
 .device-icon {
-  font-size: 32px;
+  font-size: 26px;
   flex-shrink: 0;
 }
 
-.device-info {
-  flex: 1;
-}
-
 .device-info h3 {
-  font-size: 15px;
+  font-size: 13px;
   color: var(--text-clr);
-  margin: 0 0 4px 0;
+  margin: 0 0 3px 0;
   font-weight: 600;
 }
 
 .device-info p {
-  font-size: 13px;
+  font-size: 12px;
   color: var(--secondary-text-clr);
   margin: 0;
 }
 
 .device-status {
-  font-size: 13px;
+  font-size: 12px;
   font-weight: 600;
   color: #4ade80;
   white-space: nowrap;
@@ -85,19 +76,19 @@
 
 /* Activity Items */
 .activity-item {
-  padding: 15px;
+  padding: 12px;
   background-color: var(--base-clr);
   border-left: 3px solid var(--accent-clr);
-  border-radius: 6px;
-  margin-bottom: 12px;
+  border-radius: 5px;
+  margin-bottom: 10px;
 }
 
 .activity-time {
-  font-size: 12px;
+  font-size: 11px;
   color: var(--secondary-text-clr);
   text-transform: uppercase;
   font-weight: 600;
-  letter-spacing: 0.5px;
+  letter-spacing: 0.4px;
   margin-bottom: 8px;
 }
 
@@ -109,7 +100,7 @@
 }
 
 .activity-description p {
-  font-size: 13px;
+  font-size: 12px;
   color: var(--secondary-text-clr);
   margin: 0;
 }
@@ -119,26 +110,22 @@
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 15px;
+  padding: 12px;
   background-color: var(--base-clr);
-  border-radius: 8px;
-  margin-bottom: 12px;
-  gap: 15px;
-}
-
-.setting-info {
-  flex: 1;
+  border-radius: 6px;
+  margin-bottom: 10px;
+  gap: 12px;
 }
 
 .setting-info h3 {
-  font-size: 15px;
+  font-size: 13px;
   color: var(--text-clr);
-  margin: 0 0 4px 0;
+  margin: 0 0 3px 0;
   font-weight: 600;
 }
 
 .setting-info p {
-  font-size: 13px;
+  font-size: 12px;
   color: var(--secondary-text-clr);
   margin: 0;
 }
@@ -148,11 +135,11 @@
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 15px;
+  padding: 12px;
   background-color: var(--base-clr);
-  border-radius: 8px;
-  margin-bottom: 12px;
-  gap: 15px;
+  border-radius: 6px;
+  margin-bottom: 10px;
+  gap: 12px;
 }
 
 .preference-info {
@@ -160,14 +147,14 @@
 }
 
 .preference-info h3 {
-  font-size: 15px;
+  font-size: 13px;
   color: var(--text-clr);
-  margin: 0 0 4px 0;
+  margin: 0 0 3px 0;
   font-weight: 600;
 }
 
 .preference-info p {
-  font-size: 13px;
+  font-size: 12px;
   color: var(--secondary-text-clr);
   margin: 0;
 }
@@ -176,9 +163,9 @@
   background-color: var(--hover-clr);
   color: var(--text-clr);
   border: 1px solid var(--line-clr);
-  padding: 8px 12px;
-  border-radius: 6px;
-  font-size: 13px;
+  padding: 6px 10px;
+  border-radius: 5px;
+  font-size: 12px;
   cursor: pointer;
   transition: all 200ms ease;
 }
@@ -188,11 +175,11 @@
 }
 
 .preference-toggle {
-  width: 50px;
-  height: 28px;
+  width: 44px;
+  height: 24px;
   appearance: none;
   background-color: var(--line-clr);
-  border-radius: 14px;
+  border-radius: 12px;
   cursor: pointer;
   position: relative;
   transition: all 200ms ease;
@@ -202,8 +189,8 @@
 .preference-toggle::before {
   content: '';
   position: absolute;
-  width: 24px;
-  height: 24px;
+  width: 20px;
+  height: 20px;
   background-color: white;
   border-radius: 50%;
   top: 2px;
@@ -216,7 +203,7 @@
 }
 
 .preference-toggle:checked::before {
-  left: 24px;
+  left: 20px;
 }
 
 /* Danger Zone */
@@ -227,16 +214,16 @@
 
 .danger-btn {
   width: 100%;
-  padding: 12px;
-  margin-bottom: 10px;
+  padding: 10px;
+  margin-bottom: 8px;
   background-color: rgba(239, 68, 68, 0.2);
   color: #ef4444;
   border: 1px solid #ef4444;
-  border-radius: 8px;
+  border-radius: 6px;
   font-weight: 600;
   cursor: pointer;
   transition: all 200ms ease;
-  font-size: 14px;
+  font-size: 13px;
 }
 
 .danger-btn:hover {

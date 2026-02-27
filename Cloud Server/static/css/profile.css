@@ -17,10 +17,10 @@
   top: 50%;
   left: 50%;
   transform: translate(-50%, -50%);
-  padding: 30px;
-  border-radius: 10px;
+  padding: 20px;
+  border-radius: 8px;
   width: 90%;
-  max-width: 400px;
+  max-width: 350px;
   color: var(--text-clr);
   max-height: 90vh;
   overflow-y: auto;
@@ -29,7 +29,7 @@
 .close {
   color: var(--text-clr);
   float: right;
-  font-size: 28px;
+  font-size: 24px;
   font-weight: bold;
   cursor: pointer;
 }
@@ -39,23 +39,25 @@
 }
 
 .form-group {
-  margin-bottom: 20px;
+  margin-bottom: 14px;
 }
 
 .form-group label {
   display: block;
-  margin-bottom: 8px;
+  margin-bottom: 6px;
   font-weight: 500;
+  font-size: 0.9em;
 }
 
 .form-group input {
   width: 100%;
-  padding: 10px;
+  padding: 8px;
   border: 1px solid var(--line-clr);
-  border-radius: 6px;
+  border-radius: 5px;
   background: var(--hover-clr);
   color: var(--text-clr);
   box-sizing: border-box;
+  font-size: 0.95em;
 }
 
 .form-group input:focus {
@@ -65,17 +67,18 @@
 
 .form-buttons {
   display: flex;
-  gap: 10px;
-  margin-top: 25px;
+  gap: 8px;
+  margin-top: 16px;
 }
 
 .cancel-btn, .save-btn {
   flex: 1;
-  padding: 12px;
+  padding: 9px;
   border: none;
-  border-radius: 6px;
+  border-radius: 5px;
   cursor: pointer;
   font-weight: 500;
+  font-size: 0.9em;
 }
 
 .cancel-btn {
@@ -93,10 +96,11 @@
 }
 
 .modal-message {
-  margin-bottom: 15px;
-  padding: 12px;
-  border-radius: 6px;
+  margin-bottom: 10px;
+  padding: 10px;
+  border-radius: 5px;
   text-align: center;
+  font-size: 0.9em;
 }
 
 .modal-message.success {
@@ -112,22 +116,23 @@
 .device-item {
   display: flex;
   flex-direction: column;
-  padding: 15px;
+  padding: 12px;
   background: var(--hover-clr);
-  border-radius: 8px;
-  margin-bottom: 12px;
+  border-radius: 6px;
+  margin-bottom: 10px;
   border: 1px solid var(--line-clr);
+  font-size: 0.9em;
 }
 
 .device-header {
   display: flex;
   align-items: center;
-  margin-bottom: 12px;
+  margin-bottom: 10px;
 }
 
 .device-icon {
-  font-size: 2em;
-  margin-right: 15px;
+  font-size: 1.5em;
+  margin-right: 12px;
 }
 
 .device-info {
@@ -135,13 +140,14 @@
 }
 
 .device-info h3 {
-  margin: 0 0 5px 0;
+  margin: 0 0 3px 0;
   color: var(--text-clr);
+  font-size: 0.95em;
 }
 
 .device-info p {
   margin: 0;
-  font-size: 0.9em;
+  font-size: 0.85em;
   color: var(--text-clr);
   opacity: 0.7;
 }
@@ -154,11 +160,12 @@
 }
 
 .device-action-btn, .device-delete-btn {
-  padding: 8px 16px;
+  padding: 6px 12px;
   border: none;
-  border-radius: 6px;
+  border-radius: 5px;
   cursor: pointer;
-  font-size: 0.9em;
+  font-size: 0.8em;
+  font-weight: 500;
 }
 
 .device-action-btn {
