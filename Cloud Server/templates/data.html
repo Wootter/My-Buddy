@@ -38,6 +38,7 @@
       
       socket.on('connect', () => {
         console.log('✓ Socket.IO Connected to server');
+        socket.emit('subscribe_live_data');
       });
       
       socket.on('disconnect', () => {

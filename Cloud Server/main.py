@@ -32,6 +32,8 @@ _MACHINE_PART_ID_CACHE = {}
 _MACHINE_PART_CACHE_TTL_SECONDS = 15 * 60
 _ACTIVE_SOCKET_CLIENTS = 0
 _SOCKET_CLIENTS_LOCK = Lock()
+_LIVE_DATA_SUBSCRIBERS = set()
+_LIVE_SUBSCRIBERS_LOCK = Lock()
 
 
 def resolve_maybe_async(value):
@@ -116,13 +118,24 @@ def handle_socket_disconnect():
     with _SOCKET_CLIENTS_LOCK:
         _ACTIVE_SOCKET_CLIENTS = max(0, _ACTIVE_SOCKET_CLIENTS - 1)
 
+    sid = request.sid
+    with _LIVE_SUBSCRIBERS_LOCK:
+        _LIVE_DATA_SUBSCRIBERS.discard(sid)
+
+
+@socketio.on('subscribe_live_data')
+def handle_subscribe_live_data():
+    sid = request.sid
+    with _LIVE_SUBSCRIBERS_LOCK:
+        _LIVE_DATA_SUBSCRIBERS.add(sid)
+
 
 # ==================== VIAM BACKGROUND SCHEDULER ====================
 
 def scheduled_viam_live_fetch():
     """Fetch LIVE Viam sensor data (runs every 10 seconds) - does NOT save to database"""
-    with _SOCKET_CLIENTS_LOCK:
-        active_clients = _ACTIVE_SOCKET_CLIENTS
+    with _LIVE_SUBSCRIBERS_LOCK:
+        active_clients = len(_LIVE_DATA_SUBSCRIBERS)
 
     if active_clients == 0:
         return
