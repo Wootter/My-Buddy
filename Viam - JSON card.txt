@@ -1,0 +1,68 @@
+{
+  "components": [
+    {
+      "name": "VEML7700",
+      "api": "rdk:component:sensor",
+      "model": "wootter:sensor:veml7700",
+      "attributes": {}
+    },
+    {
+      "name": "DHT22",
+      "api": "rdk:component:sensor",
+      "model": "wootter:sensor:dht22",
+      "attributes": {
+        "pin": 27
+      }
+    },
+    {
+      "name": "MH-SR602",
+      "api": "rdk:component:sensor",
+      "model": "wootter:sensor:mh-sr602",
+      "attributes": {
+        "pin": 17
+      }
+    },
+    {
+      "name": "Leds",
+      "api": "rdk:component:generic",
+      "model": "wootter:generic:rgb-leds",
+      "attributes": {
+        "green_pin": 5,
+        "blue_pin": 13,
+        "red_pin": 6
+      }
+    }
+  ],
+  "modules": [
+    {
+      "type": "registry",
+      "name": "wootter_veml7700",
+      "module_id": "wootter:veml7700",
+      "version": "latest"
+    },
+    {
+      "type": "registry",
+      "name": "wootter_dht22",
+      "module_id": "wootter:dht22",
+      "version": "latest"
+    },
+    {
+      "type": "registry",
+      "name": "wootter_mh-sr602",
+      "module_id": "wootter:mh-sr602",
+      "version": "latest"
+    },
+    {
+      "type": "registry",
+      "name": "viam_raspberry-pi",
+      "module_id": "viam:raspberry-pi",
+      "version": "latest"
+    },
+    {
+      "type": "registry",
+      "name": "wootter_rgb-leds",
+      "module_id": "wootter:rgb-leds",
+      "version": "latest"
+    }
+  ]
+}
