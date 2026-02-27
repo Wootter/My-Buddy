@@ -63,7 +63,10 @@ main > .container > h1 {
 
 .chart-wrapper {
   width: 100%;
-  height: 200px;
+  height: 300px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
   overflow-x: hidden;
   overflow-y: hidden;
   position: relative;
@@ -79,6 +82,8 @@ main > .container > h1 {
 
 .chart-wrapper canvas {
   display: block;
+  width: 100% !important;
+  height: 100% !important;
 }
 
 /* Hide vertical scrollbars but keep horizontal */

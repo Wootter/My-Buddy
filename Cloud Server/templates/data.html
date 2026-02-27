@@ -279,7 +279,7 @@
           <div class="chart-container">
             <h3 class="chart-title">{{ chart.name }} - {{ chart.type|title }}</h3>
             <div class="chart-wrapper" id="wrapper-{{ loop.index }}">
-              <canvas id="chart-{{ loop.index }}" width="400" height="200"></canvas>
+              <canvas id="chart-{{ loop.index }}"></canvas>
             </div>
             <div class="chart-scrollbar-container">
               <input type="range" class="chart-scrollbar" id="scrollbar-{{ loop.index }}" min="0" max="100" value="0">
@@ -479,11 +479,9 @@
                   let viewportStart = 0;
                   let viewportEnd = Math.min(viewportPoints, totalDataPoints);
                   
-                  // SET CANVAS DIMENSIONS BEFORE CREATING CHART
-                  // Canvas width is pre-calculated to fit within screen bounds
-                  canvasEl.width = canvasWidth;
-                  canvasEl.height = 180;
-                  console.log(`Canvas dimensions: ${canvasWidth}x180 for ${sensor.name} (${viewportPoints} visible points of ${totalDataPoints} total)`);
+                  // Canvas will be sized by its container using CSS
+                  // Chart.js with maintainAspectRatio: false will fill the container
+                  console.log(`Chart container ready for ${sensor.name} (${viewportPoints} visible points of ${totalDataPoints} total)`);
                   
                   function updateChartData() {
                     // Get slice of data for current viewport
@@ -491,10 +489,6 @@
                     const viewportValues = allValues.slice(viewportStart, viewportEnd);
                     
                     console.log(`[SCROLL UPDATE] ${sensor.name}: viewport ${viewportStart}-${viewportEnd}, showing ${viewportValues.length} points`);
-                    
-                    // Canvas dimensions stay constant (sized for viewport points)
-                    canvasEl.width = canvasWidth;
-                    canvasEl.height = 180;
                     
                     // Update chart instance with new data
                     if (chartInstances[chartId]) {
