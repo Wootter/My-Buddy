@@ -90,6 +90,8 @@
         </select>
       </div>
 
+      <div id="config-warning" class="status-message error" style="display: none;"></div>
+
       <div id="sensors-container" class="sensors-grid"></div>
 
       <template id="sensor-card-template">
@@ -147,6 +149,9 @@
 
     async function loadSensors() {
       const robotId = document.getElementById('robot-select').value;
+      const warningEl = document.getElementById('config-warning');
+      warningEl.style.display = 'none';
+      warningEl.textContent = '';
       
       if (!robotId) {
         document.getElementById('sensors-container').innerHTML = '';
@@ -162,6 +167,11 @@
           document.getElementById('sensors-container').innerHTML = 
             `<div class="empty-state">${apiError}</div>`;
           return;
+        }
+
+        if (data.warning) {
+          warningEl.textContent = data.warning;
+          warningEl.style.display = 'block';
         }
 
         if (Array.isArray(data.sensors) && data.sensors.length > 0) {

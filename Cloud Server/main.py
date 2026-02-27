@@ -784,6 +784,7 @@ def connect_device(user_robot_id):
 def get_robot_sensors(robot_id):
     """Get configurable robot components and their pin attributes from Viam config"""
     from models import UserRobot, Robot, Sensor
+    from collections.abc import Mapping
     
     account_id = session['user_id']
     
@@ -795,6 +796,37 @@ def get_robot_sensors(robot_id):
     robot = Robot.query.get(robot_id)
 
     robot_name = robot.robot_name if robot else f'Robot {robot_id}'
+
+    def _normalize_attributes(raw_attributes):
+        if raw_attributes is None:
+            return {}
+
+        if isinstance(raw_attributes, Mapping):
+            return dict(raw_attributes)
+
+        try:
+            from google.protobuf.json_format import MessageToDict
+            return MessageToDict(raw_attributes, preserving_proto_field_name=True)
+        except Exception:
+            pass
+
+        try:
+            return dict(raw_attributes)
+        except Exception:
+            return {}
+
+    def _normalize_scalar(value):
+        if isinstance(value, (str, int, float, bool)) or value is None:
+            return value
+
+        try:
+            from google.protobuf.json_format import MessageToDict
+            converted = MessageToDict(value, preserving_proto_field_name=True)
+            if isinstance(converted, dict) and 'value' in converted and len(converted) == 1:
+                return converted['value']
+            return converted
+        except Exception:
+            return str(value)
 
     def _db_sensor_fallback():
         db_sensors = Sensor.query.filter_by(robot_id=robot_id).all()
@@ -829,7 +861,7 @@ def get_robot_sensors(robot_id):
 
         sensor_list = []
         for component in config.components:
-            attributes = dict(getattr(component, 'attributes', {}) or {})
+            attributes = _normalize_attributes(getattr(component, 'attributes', {}) or {})
 
             pin_attributes = []
             for key, value in attributes.items():
@@ -837,11 +869,19 @@ def get_robot_sensors(robot_id):
                 if 'pin' not in key_lower:
                     continue
 
-                input_type = 'number' if isinstance(value, (int, float)) else 'text'
+                normalized_value = _normalize_scalar(value)
+                if isinstance(normalized_value, str):
+                    value_for_input = normalized_value
+                elif isinstance(normalized_value, (int, float)):
+                    value_for_input = normalized_value
+                else:
+                    value_for_input = str(normalized_value)
+
+                input_type = 'number' if isinstance(normalized_value, (int, float)) else 'text'
                 pin_attributes.append({
                     'key': str(key),
                     'label': str(key).replace('_', ' ').title(),
-                    'value': value,
+                    'value': value_for_input,
                     'type': input_type
                 })
 
