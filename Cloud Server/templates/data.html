@@ -46,18 +46,21 @@
       // Listen for LIVE sensor data updates (every 5 seconds)
       socket.on('live_sensor_data', (data) => {
         if (data.success && data.readings) {
-          console.log('Live sensor data received:', Object.keys(data.readings).length, 'sensors');
+          console.log('✓ [SOCKET.IO] Live sensor data received:', Object.keys(data.readings).length, 'sensors updated');
           updateLiveSensorDisplay(data.readings);
           resetInactivityTimer(); // Reset inactivity timer on data update
+        } else {
+          console.warn('⚠ [SOCKET.IO] Invalid live_sensor_data format:', data);
         }
       });
       
       socket.on('update_sensor_data', async () => {
-        console.log('Database sensor data updated, charts will refresh on next page load...');
+        console.log('✓ [SOCKET.IO] Database sensor data updated, charts will refresh on next page load...');
       });
 
       // Update live sensor display
       function updateLiveSensorDisplay(readings) {
+        let updated = 0;
         for (const [name, reading] of Object.entries(readings)) {
           const id = 'val-' + name.replace(/ /g, '-');
           const el = document.getElementById(id);
@@ -72,10 +75,14 @@
               el.appendChild(valueSpan);
               el.appendChild(unitSpan);
             }
+            updated++;
             
             // No animation - keeping border styling only
+          } else {
+            console.warn(`[LIVE UPDATE] Sensor element not found: ${id}`);
           }
         }
+        console.log(`[LIVE UPDATE] Updated ${updated} sensor displays`);
       }
 
       // Check robot connection status
@@ -438,14 +445,21 @@
                   let viewportStart = 0;
                   let viewportEnd = Math.min(viewportPoints, totalDataPoints);
                   
+                  // SET CANVAS DIMENSIONS BEFORE CREATING CHART
+                  const pointWidth = 60;
+                  const canvasWidth = Math.max(window.innerWidth - 100, viewportPoints * pointWidth);
+                  canvasEl.width = canvasWidth;
+                  canvasEl.height = 180;
+                  console.log(`Canvas dimensions: ${canvasWidth}x180 for ${sensor.name}`);
+                  
                   function updateChartData() {
                     // Get slice of data for current viewport
                     const viewportLabels = allLabels.slice(viewportStart, viewportEnd);
                     const viewportValues = allValues.slice(viewportStart, viewportEnd);
                     
-                    // Set canvas width based on viewport or total data
-                    const pointWidth = 60;
-                    const canvasWidth = Math.max(window.innerWidth - 100, viewportPoints * pointWidth);
+                    console.log(`[SCROLL UPDATE] ${sensor.name}: viewport ${viewportStart}-${viewportEnd}, showing ${viewportValues.length} points`);
+                    
+                    // Update dimensions for scrolling
                     canvasEl.width = canvasWidth;
                     canvasEl.height = 180;
                     
@@ -454,17 +468,27 @@
                       chartInstances[chartId].data.labels = viewportLabels;
                       chartInstances[chartId].data.datasets[0].data = viewportValues;
                       chartInstances[chartId].update('none'); // No animation for smooth interactions
+                      console.log(`[SCROLL COMPLETE] Chart ${chartId} updated successfully`);
+                    } else {
+                      console.error(`[SCROLL ERROR] Chart instance ${chartId} not found!`);
                     }
+                  }
+                  
+                  // Validate data before creating chart
+                  if (allValues.length === 0) {
+                    console.warn(`[CHART DEBUG] No data for sensor: ${sensor.name}`);
+                  } else {
+                    console.log(`[CHART DEBUG] Sensor: ${sensor.name}, Total points: ${allValues.length}, Viewport: ${viewportStart}-${viewportEnd}, Displayed: ${allValues.slice(viewportStart, viewportEnd).length}`);
                   }
                   
                   // Create chart
                   const chart = new Chart(ctx, {
                     type: 'line',
                     data: {
-                      labels: allLabels.slice(0, viewportEnd),
+                      labels: allLabels.slice(viewportStart, viewportEnd),
                       datasets: [{
                         label: `${sensor.name} (${unit})`,
-                        data: allValues.slice(0, viewportEnd),
+                        data: allValues.slice(viewportStart, viewportEnd),
                         borderColor: color,
                         backgroundColor: color.replace('rgb', 'rgba').replace(')', ', 0.15)'),
                         tension: isMotionSensor ? 0 : 0.4,
