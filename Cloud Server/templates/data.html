@@ -387,10 +387,14 @@
               console.log(`Data processing complete: ${totalDataPoints} unique timestamps found`);
               console.log(`[INIT] Total sensors to render: ${chartData.length}`);
               
-              // Calculate viewport size (points that fit on screen)
+              // Calculate viewport size based on available screen space (not exceeding viewport width)
               const screenWidth = window.innerWidth;
-              const viewportPoints = Math.max(8, Math.floor((screenWidth - 100) / 60)); // ~60px per point
-              console.log(`[INIT] Viewport settings: screenWidth=${screenWidth}, viewportPoints=${viewportPoints}`);
+              const maxChartWidth = screenWidth - 40; // Account for padding/margins
+              const pointWidth = 60; // pixels per data point
+              const viewportPoints = Math.max(8, Math.floor(maxChartWidth / pointWidth)); // How many points fit on screen
+              const canvasWidth = viewportPoints * pointWidth; // Canvas exactly fits the calculated point space
+              
+              console.log(`[INIT] Screen=${screenWidth}px, maxChart=${maxChartWidth}px, pointWidth=${pointWidth}px, viewportPoints=${viewportPoints}, canvasWidth=${canvasWidth}px`);
               
               chartData.forEach((sensor, index) => {
                 console.log(`[INIT] Processing sensor ${index + 1}/${chartData.length}: ${sensor.name}`);
@@ -460,12 +464,10 @@
                   let viewportEnd = Math.min(viewportPoints, totalDataPoints);
                   
                   // SET CANVAS DIMENSIONS BEFORE CREATING CHART
-                  const pointWidth = 60;
-                  // Canvas width = exactly what's needed for viewport points (no dead space)
-                  const canvasWidth = viewportPoints * pointWidth;
+                  // Canvas width is pre-calculated to fit within screen bounds
                   canvasEl.width = canvasWidth;
                   canvasEl.height = 180;
-                  console.log(`Canvas dimensions: ${canvasWidth}x180 for ${sensor.name} (${viewportPoints} points × ${pointWidth}px/point)`);
+                  console.log(`Canvas dimensions: ${canvasWidth}x180 for ${sensor.name} (${viewportPoints} visible points of ${totalDataPoints} total)`);
                   
                   function updateChartData() {
                     // Get slice of data for current viewport
@@ -474,8 +476,7 @@
                     
                     console.log(`[SCROLL UPDATE] ${sensor.name}: viewport ${viewportStart}-${viewportEnd}, showing ${viewportValues.length} points`);
                     
-                    // Update canvas dimensions to match exact viewport needs (no dead space)
-                    const canvasWidth = viewportPoints * pointWidth;
+                    // Canvas dimensions stay constant (sized for viewport points)
                     canvasEl.width = canvasWidth;
                     canvasEl.height = 180;
                     
