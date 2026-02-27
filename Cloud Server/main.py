@@ -782,8 +782,9 @@ def connect_device(user_robot_id):
 @app.route('/api/robot/<int:robot_id>/sensors', methods=['GET'])
 @login_required
 def get_robot_sensors(robot_id):
-    """Get all sensors for a robot"""
-    from models import UserRobot, Robot, Sensor
+    """Get configurable robot components and their pin attributes from Viam config"""
+    from models import UserRobot, Robot
+    from viam.robot.client import RobotClient
     
     account_id = session['user_id']
     
@@ -793,9 +794,46 @@ def get_robot_sensors(robot_id):
         return jsonify({'success': False, 'error': 'Robot not found or access denied'}), 403
     
     robot = Robot.query.get(robot_id)
-    sensors = Sensor.query.filter_by(robot_id=robot_id).all()
-    
-    sensor_list = [s.to_dict() for s in sensors]
+
+    try:
+        opts = RobotClient.Options.with_api_key(
+            api_key=user_robot.get_viam_api_key(),
+            api_key_id=user_robot.get_viam_api_key_id()
+        )
+        robot_client = RobotClient.at_address(robot.viam_robot_address, opts)
+        config = robot_client.get_config()
+
+        sensor_list = []
+        for component in config.components:
+            attributes = dict(getattr(component, 'attributes', {}) or {})
+
+            pin_attributes = []
+            for key, value in attributes.items():
+                key_lower = str(key).lower()
+                if 'pin' not in key_lower:
+                    continue
+
+                input_type = 'number' if isinstance(value, (int, float)) else 'text'
+                pin_attributes.append({
+                    'key': str(key),
+                    'label': str(key).replace('_', ' ').title(),
+                    'value': value,
+                    'type': input_type
+                })
+
+            sensor_list.append({
+                'id': component.name,
+                'name': component.name,
+                'sensor_type': component.model,
+                'api': component.api,
+                'model': component.model,
+                'pin_attributes': pin_attributes
+            })
+
+        robot_client.close()
+    except Exception as e:
+        logger.error(f"Error fetching robot component config: {str(e)}")
+        return jsonify({'success': False, 'error': f'Failed to fetch robot configuration: {str(e)}'}), 500
     
     return jsonify({
         'success': True,
@@ -803,6 +841,81 @@ def get_robot_sensors(robot_id):
         'robot_name': robot.robot_name,
         'sensors': sensor_list
     })
+
+
+@app.route('/api/robot/<int:robot_id>/component-pins', methods=['POST'])
+@login_required
+def update_component_pins(robot_id):
+    """Update pin attributes for a specific Viam component"""
+    from models import UserRobot
+    from viam.robot.client import RobotClient
+
+    account_id = session['user_id']
+
+    user_robot = UserRobot.query.filter_by(account_id=account_id, robot_id=robot_id).first()
+    if not user_robot:
+        return jsonify({'success': False, 'error': 'Access denied'}), 403
+
+    try:
+        data = request.get_json() or {}
+        component_name = data.get('component_name')
+        pin_updates = data.get('pin_updates', {})
+
+        if not component_name:
+            return jsonify({'success': False, 'error': 'component_name is required'}), 400
+        if not isinstance(pin_updates, dict) or not pin_updates:
+            return jsonify({'success': False, 'error': 'pin_updates must contain at least one pin field'}), 400
+
+        opts = RobotClient.Options.with_api_key(
+            api_key=user_robot.get_viam_api_key(),
+            api_key_id=user_robot.get_viam_api_key_id()
+        )
+        robot = RobotClient.at_address(user_robot.robot.viam_robot_address, opts)
+        config = robot.get_config()
+
+        target_component = None
+        for component in config.components:
+            if component.name == component_name:
+                target_component = component
+                break
+
+        if not target_component:
+            robot.close()
+            return jsonify({'success': False, 'error': f'Component not found: {component_name}'}), 404
+
+        current_attributes = dict(getattr(target_component, 'attributes', {}) or {})
+
+        for key, value in pin_updates.items():
+            key_lower = str(key).lower()
+            if 'pin' not in key_lower:
+                continue
+
+            if isinstance(value, str):
+                stripped = value.strip()
+                if stripped.isdigit():
+                    current_attributes[key] = int(stripped)
+                else:
+                    current_attributes[key] = stripped
+            else:
+                current_attributes[key] = value
+
+        target_component.attributes = current_attributes
+
+        robot.reconfigure_config(config)
+        robot.close()
+
+        return jsonify({
+            'success': True,
+            'message': 'Component pins updated in Viam',
+            'component_name': component_name
+        }), 200
+
+    except Exception as e:
+        logger.error(f"Error updating component pins: {str(e)}")
+        return jsonify({
+            'success': False,
+            'error': f'Failed to update pins: {str(e)}'
+        }), 500
 
 
 @app.route('/api/sensor/<int:sensor_id>/pins', methods=['POST'])

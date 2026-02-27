@@ -99,50 +99,11 @@
 
           <div class="collapse-section">
             <div class="collapse-title" onclick="toggleCollapse(this)">
-              GPIO Configuration
+              Pin Configuration
               <span class="collapse-icon">▼</span>
             </div>
             <div class="collapse-content open">
-              <div class="form-group">
-                <label>GPIO Pin (BCM):</label>
-                <input type="number" class="gpio-pin" placeholder="e.g., 17">
-              </div>
-            </div>
-          </div>
-
-          <div class="collapse-section">
-            <div class="collapse-title" onclick="toggleCollapse(this)">
-              I2C Configuration
-              <span class="collapse-icon">▼</span>
-            </div>
-            <div class="collapse-content">
-              <div class="form-group">
-                <label>I2C Address:</label>
-                <input type="text" class="i2c-address" placeholder="e.g., 0x44">
-              </div>
-              <div class="form-group">
-                <label>I2C Bus:</label>
-                <input type="number" class="i2c-bus" placeholder="e.g., 1">
-              </div>
-            </div>
-          </div>
-
-          <div class="collapse-section">
-            <div class="collapse-title" onclick="toggleCollapse(this)">
-              SPI Configuration
-              <span class="collapse-icon">▼</span>
-            </div>
-            <div class="collapse-content">
-              <div class="pin-grid">
-                <div class="form-group">
-                  <label>SPI Bus:</label>
-                  <input type="number" class="spi-bus" placeholder="e.g., 0">
-                </div>
-                <div class="form-group">
-                  <label>SPI Device:</label>
-                  <input type="number" class="spi-device" placeholder="e.g., 0">
-                </div>
-              </div>
+              <div class="pin-fields" data-field="pin-fields"></div>
             </div>
           </div>
 
@@ -226,8 +187,34 @@
       card.querySelector('[data-field="sensor-name"]').textContent = sensor.name;
       card.querySelector('[data-field="sensor-type"]').textContent = sensor.sensor_type || 'Unknown Type';
 
+      const pinFieldsContainer = card.querySelector('[data-field="pin-fields"]');
+      const pinAttributes = Array.isArray(sensor.pin_attributes) ? sensor.pin_attributes : [];
+
+      if (pinAttributes.length === 0) {
+        pinFieldsContainer.innerHTML = '<div class="empty-state">No configurable pin fields for this component</div>';
+      } else {
+        pinAttributes.forEach(pinAttr => {
+          const formGroup = document.createElement('div');
+          formGroup.className = 'form-group';
+
+          const label = document.createElement('label');
+          label.textContent = pinAttr.label || pinAttr.key;
+
+          const input = document.createElement('input');
+          input.type = pinAttr.type === 'number' ? 'number' : 'text';
+          input.className = 'pin-field';
+          input.dataset.pinKey = pinAttr.key;
+          input.placeholder = pinAttr.type === 'number' ? 'Enter pin number' : 'Enter value';
+          input.value = pinAttr.value ?? '';
+
+          formGroup.appendChild(label);
+          formGroup.appendChild(input);
+          pinFieldsContainer.appendChild(formGroup);
+        });
+      }
+
       const saveButton = card.querySelector('.btn-save');
-      saveButton.addEventListener('click', () => saveSensorPins(sensor.id, saveButton));
+      saveButton.addEventListener('click', () => saveSensorPins(sensor, saveButton));
 
       const resetButton = card.querySelector('.btn-reset');
       resetButton.addEventListener('click', () => resetSensorForm(resetButton));
@@ -243,26 +230,31 @@
       icon.classList.toggle('open');
     }
 
-    async function saveSensorPins(sensorId, button) {
+    async function saveSensorPins(sensor, button) {
       const card = button.closest('.sensor-card');
       const statusMessage = card.querySelector('.status-message');
-      
-      const pinData = {
-        gpio_pin: parseInt(card.querySelector('.gpio-pin').value) || null,
-        i2c_address: card.querySelector('.i2c-address').value || null,
-        i2c_bus: parseInt(card.querySelector('.i2c-bus').value) || null,
-        spi_bus: parseInt(card.querySelector('.spi-bus').value) || null,
-        spi_device: parseInt(card.querySelector('.spi-device').value) || null,
-      };
 
-      // Remove null values
-      Object.keys(pinData).forEach(key => {
-        if (pinData[key] === null) {
-          delete pinData[key];
+      const pinUpdates = {};
+      const pinInputs = card.querySelectorAll('.pin-field');
+      pinInputs.forEach(input => {
+        const key = input.dataset.pinKey;
+        const rawValue = input.value;
+
+        if (!key || rawValue === '') {
+          return;
+        }
+
+        if (input.type === 'number') {
+          const parsed = parseInt(rawValue, 10);
+          if (!Number.isNaN(parsed)) {
+            pinUpdates[key] = parsed;
+          }
+        } else {
+          pinUpdates[key] = rawValue;
         }
       });
 
-      if (Object.keys(pinData).length === 0) {
+      if (Object.keys(pinUpdates).length === 0) {
         showMessage(statusMessage, 'Please enter at least one pin value', 'error');
         return;
       }
@@ -271,12 +263,17 @@
         button.disabled = true;
         button.textContent = 'Updating...';
 
-        const response = await fetch(`/api/sensor/${sensorId}/pins`, {
+        const robotId = document.getElementById('robot-select').value;
+
+        const response = await fetch(`/api/robot/${robotId}/component-pins`, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json'
           },
-          body: JSON.stringify(pinData)
+          body: JSON.stringify({
+            component_name: sensor.name,
+            pin_updates: pinUpdates
+          })
         });
 
         const data = await response.json();
@@ -300,11 +297,9 @@
 
     function resetSensorForm(button) {
       const card = button.closest('.sensor-card');
-      card.querySelector('.gpio-pin').value = '';
-      card.querySelector('.i2c-address').value = '';
-      card.querySelector('.i2c-bus').value = '';
-      card.querySelector('.spi-bus').value = '';
-      card.querySelector('.spi-device').value = '';
+      card.querySelectorAll('.pin-field').forEach(input => {
+        input.value = '';
+      });
       card.querySelector('.status-message').className = 'status-message';
     }
 
