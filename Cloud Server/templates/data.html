@@ -461,10 +461,11 @@
                   
                   // SET CANVAS DIMENSIONS BEFORE CREATING CHART
                   const pointWidth = 60;
-                  const canvasWidth = Math.max(window.innerWidth - 100, viewportPoints * pointWidth);
+                  // Canvas width = exactly what's needed for viewport points (no dead space)
+                  const canvasWidth = viewportPoints * pointWidth;
                   canvasEl.width = canvasWidth;
                   canvasEl.height = 180;
-                  console.log(`Canvas dimensions: ${canvasWidth}x180 for ${sensor.name}`);
+                  console.log(`Canvas dimensions: ${canvasWidth}x180 for ${sensor.name} (${viewportPoints} points × ${pointWidth}px/point)`);
                   
                   function updateChartData() {
                     // Get slice of data for current viewport
@@ -473,7 +474,8 @@
                     
                     console.log(`[SCROLL UPDATE] ${sensor.name}: viewport ${viewportStart}-${viewportEnd}, showing ${viewportValues.length} points`);
                     
-                    // Update dimensions for scrolling
+                    // Update canvas dimensions to match exact viewport needs (no dead space)
+                    const canvasWidth = viewportPoints * pointWidth;
                     canvasEl.width = canvasWidth;
                     canvasEl.height = 180;
                     
