@@ -40,14 +40,18 @@ main > .container > h1 {
 
 /* Balanced grid for different item counts */
 .stats-grid.balance-1 { grid-template-columns: 1fr; }
-.stats-grid.balance-2 @media (min-width: 480px) { grid-template-columns: repeat(2, 1fr); }
-.stats-grid.balance-3 @media (min-width: 480px) { grid-template-columns: repeat(3, 1fr); }
-.stats-grid.balance-4 @media (min-width: 480px) { grid-template-columns: repeat(2, 1fr); }
-.stats-grid.balance-5 @media (min-width: 480px) { grid-template-columns: repeat(2, 1fr); }
-.stats-grid .stat-card:last-child:nth-child(odd):nth-last-child(1) @media (min-width: 480px) {
-  grid-column: 1 / -1;
-  max-width: 50%;
-  margin: 0 auto;
+
+@media (min-width: 480px) {
+  .stats-grid.balance-2 { grid-template-columns: repeat(2, 1fr); }
+  .stats-grid.balance-3 { grid-template-columns: repeat(3, 1fr); }
+  .stats-grid.balance-4 { grid-template-columns: repeat(2, 1fr); }
+  .stats-grid.balance-5 { grid-template-columns: repeat(2, 1fr); }
+
+  .stats-grid .stat-card:last-child:nth-child(odd):nth-last-child(1) {
+    grid-column: 1 / -1;
+    max-width: 50%;
+    margin: 0 auto;
+  }
 }
 
 .chart-container {
@@ -63,14 +67,12 @@ main > .container > h1 {
 
 .chart-wrapper {
   width: 100%;
-  height: 300px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
+  min-height: 320px;
+  height: clamp(320px, 42vh, 460px);
   overflow-x: hidden;
   overflow-y: hidden;
   position: relative;
-  padding: 10px;
+  padding: 12px;
   box-sizing: border-box;
   scrollbar-width: none; /* Hide default scrollbar */
 }
@@ -84,6 +86,14 @@ main > .container > h1 {
   display: block;
   width: 100% !important;
   height: 100% !important;
+}
+
+@media (max-width: 640px) {
+  .chart-wrapper {
+    min-height: 280px;
+    height: 52vh;
+    padding: 8px;
+  }
 }
 
 /* Hide vertical scrollbars but keep horizontal */
