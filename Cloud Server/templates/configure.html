@@ -91,6 +91,69 @@
       </div>
 
       <div id="sensors-container" class="sensors-grid"></div>
+
+      <template id="sensor-card-template">
+        <div class="sensor-card">
+          <h3 data-field="sensor-name"></h3>
+          <div class="sensor-type" data-field="sensor-type"></div>
+
+          <div class="collapse-section">
+            <div class="collapse-title" onclick="toggleCollapse(this)">
+              GPIO Configuration
+              <span class="collapse-icon">▼</span>
+            </div>
+            <div class="collapse-content open">
+              <div class="form-group">
+                <label>GPIO Pin (BCM):</label>
+                <input type="number" class="gpio-pin" placeholder="e.g., 17">
+              </div>
+            </div>
+          </div>
+
+          <div class="collapse-section">
+            <div class="collapse-title" onclick="toggleCollapse(this)">
+              I2C Configuration
+              <span class="collapse-icon">▼</span>
+            </div>
+            <div class="collapse-content">
+              <div class="form-group">
+                <label>I2C Address:</label>
+                <input type="text" class="i2c-address" placeholder="e.g., 0x44">
+              </div>
+              <div class="form-group">
+                <label>I2C Bus:</label>
+                <input type="number" class="i2c-bus" placeholder="e.g., 1">
+              </div>
+            </div>
+          </div>
+
+          <div class="collapse-section">
+            <div class="collapse-title" onclick="toggleCollapse(this)">
+              SPI Configuration
+              <span class="collapse-icon">▼</span>
+            </div>
+            <div class="collapse-content">
+              <div class="pin-grid">
+                <div class="form-group">
+                  <label>SPI Bus:</label>
+                  <input type="number" class="spi-bus" placeholder="e.g., 0">
+                </div>
+                <div class="form-group">
+                  <label>SPI Device:</label>
+                  <input type="number" class="spi-device" placeholder="e.g., 0">
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="button-group">
+            <button class="btn-save">Update Pins in Viam</button>
+            <button class="btn-reset">Clear</button>
+          </div>
+
+          <div class="status-message"></div>
+        </div>
+      </template>
     </div>
   </main>
 
@@ -157,70 +220,18 @@
     }
 
     function createSensorCard(sensor) {
-      const card = document.createElement('div');
-      card.className = 'sensor-card';
-      
-      card.innerHTML = `
-        <h3>${sensor.name}</h3>
-        <div class="sensor-type">${sensor.sensor_type || 'Unknown Type'}</div>
-        
-        <div class="collapse-section">
-          <div class="collapse-title" onclick="toggleCollapse(this)">
-            GPIO Configuration
-            <span class="collapse-icon">▼</span>
-          </div>
-          <div class="collapse-content open">
-            <div class="form-group">
-              <label>GPIO Pin (BCM):</label>
-              <input type="number" class="gpio-pin" placeholder="e.g., 17">
-            </div>
-          </div>
-        </div>
+      const template = document.getElementById('sensor-card-template');
+      const card = template.content.firstElementChild.cloneNode(true);
 
-        <div class="collapse-section">
-          <div class="collapse-title" onclick="toggleCollapse(this)">
-            I2C Configuration
-            <span class="collapse-icon">▼</span>
-          </div>
-          <div class="collapse-content">
-            <div class="form-group">
-              <label>I2C Address:</label>
-              <input type="text" class="i2c-address" placeholder="e.g., 0x44">
-            </div>
-            <div class="form-group">
-              <label>I2C Bus:</label>
-              <input type="number" class="i2c-bus" placeholder="e.g., 1">
-            </div>
-          </div>
-        </div>
+      card.querySelector('[data-field="sensor-name"]').textContent = sensor.name;
+      card.querySelector('[data-field="sensor-type"]').textContent = sensor.sensor_type || 'Unknown Type';
 
-        <div class="collapse-section">
-          <div class="collapse-title" onclick="toggleCollapse(this)">
-            SPI Configuration
-            <span class="collapse-icon">▼</span>
-          </div>
-          <div class="collapse-content">
-            <div class="pin-grid">
-              <div class="form-group">
-                <label>SPI Bus:</label>
-                <input type="number" class="spi-bus" placeholder="e.g., 0">
-              </div>
-              <div class="form-group">
-                <label>SPI Device:</label>
-                <input type="number" class="spi-device" placeholder="e.g., 0">
-              </div>
-            </div>
-          </div>
-        </div>
+      const saveButton = card.querySelector('.btn-save');
+      saveButton.addEventListener('click', () => saveSensorPins(sensor.id, saveButton));
 
-        <div class="button-group">
-          <button class="btn-save" onclick="saveSensorPins(${sensor.id}, this)">Update Pins in Viam</button>
-          <button class="btn-reset" onclick="resetSensorForm(this)">Clear</button>
-        </div>
+      const resetButton = card.querySelector('.btn-reset');
+      resetButton.addEventListener('click', () => resetSensorForm(resetButton));
 
-        <div class="status-message"></div>
-      `;
-      
       return card;
     }
 
