@@ -857,6 +857,8 @@ def get_robot_sensors(robot_id):
 
     try:
         from viam.robot.client import RobotClient
+        from viam.app.viam_client import ViamClient
+        from viam.rpc.dial import DialOptions
 
         if not robot:
             sensor_list = _db_sensor_fallback()
@@ -873,11 +875,30 @@ def get_robot_sensors(robot_id):
             api_key_id=user_robot.get_viam_api_key_id()
         )
         robot_client = resolve_maybe_async(RobotClient.at_address(robot.viam_robot_address, opts))
-        config = resolve_maybe_async(robot_client.get_config())
+        cloud_metadata = resolve_maybe_async(robot_client.get_cloud_metadata())
+        machine_part_id = cloud_metadata.machine_part_id
+        resolve_maybe_async(robot_client.close())
+
+        dial_options = DialOptions.with_api_key(
+            user_robot.get_viam_api_key(),
+            user_robot.get_viam_api_key_id()
+        )
+        viam_client = resolve_maybe_async(ViamClient.create_from_dial_options(dial_options))
+        app_client = viam_client.app_client
+        robot_part = resolve_maybe_async(app_client.get_robot_part(machine_part_id))
+        robot_config = robot_part.robot_config or {}
+        components = robot_config.get('components', []) if isinstance(robot_config, dict) else []
 
         sensor_list = []
-        for component in config.components:
-            attributes = _normalize_attributes(getattr(component, 'attributes', {}) or {})
+        for component in components:
+            if not isinstance(component, dict):
+                continue
+
+            component_name = component.get('name')
+            if not component_name:
+                continue
+
+            attributes = _normalize_attributes(component.get('attributes', {}) or {})
 
             pin_attributes = []
             for key, value in attributes.items():
@@ -902,15 +923,15 @@ def get_robot_sensors(robot_id):
                 })
 
             sensor_list.append({
-                'id': component.name,
-                'name': component.name,
-                'sensor_type': str(component.model),
-                'api': str(component.api),
-                'model': str(component.model),
+                'id': component_name,
+                'name': component_name,
+                'sensor_type': str(component.get('model', '')),
+                'api': str(component.get('api', '')),
+                'model': str(component.get('model', '')),
                 'pin_attributes': pin_attributes
             })
 
-        resolve_maybe_async(robot_client.close())
+        viam_client.close()
 
         if not sensor_list:
             sensor_list = _db_sensor_fallback()
@@ -940,6 +961,8 @@ def update_component_pins(robot_id):
     """Update pin attributes for a specific Viam component"""
     from models import UserRobot
     from viam.robot.client import RobotClient
+    from viam.app.viam_client import ViamClient
+    from viam.rpc.dial import DialOptions
 
     account_id = session['user_id']
 
@@ -962,19 +985,31 @@ def update_component_pins(robot_id):
             api_key_id=user_robot.get_viam_api_key_id()
         )
         robot = resolve_maybe_async(RobotClient.at_address(user_robot.robot.viam_robot_address, opts))
-        config = resolve_maybe_async(robot.get_config())
+        cloud_metadata = resolve_maybe_async(robot.get_cloud_metadata())
+        machine_part_id = cloud_metadata.machine_part_id
+        resolve_maybe_async(robot.close())
+
+        dial_options = DialOptions.with_api_key(
+            user_robot.get_viam_api_key(),
+            user_robot.get_viam_api_key_id()
+        )
+        viam_client = resolve_maybe_async(ViamClient.create_from_dial_options(dial_options))
+        app_client = viam_client.app_client
+        robot_part = resolve_maybe_async(app_client.get_robot_part(machine_part_id))
+        robot_config = robot_part.robot_config or {}
+        components = robot_config.get('components', []) if isinstance(robot_config, dict) else []
 
         target_component = None
-        for component in config.components:
-            if component.name == component_name:
+        for component in components:
+            if isinstance(component, dict) and component.get('name') == component_name:
                 target_component = component
                 break
 
         if not target_component:
-            resolve_maybe_async(robot.close())
+            viam_client.close()
             return jsonify({'success': False, 'error': f'Component not found: {component_name}'}), 404
 
-        current_attributes = dict(getattr(target_component, 'attributes', {}) or {})
+        current_attributes = dict(target_component.get('attributes', {}) or {})
 
         for key, value in pin_updates.items():
             key_lower = str(key).lower()
@@ -990,10 +1025,10 @@ def update_component_pins(robot_id):
             else:
                 current_attributes[key] = value
 
-        target_component.attributes = current_attributes
+        target_component['attributes'] = current_attributes
 
-        resolve_maybe_async(robot.reconfigure_config(config))
-        resolve_maybe_async(robot.close())
+        resolve_maybe_async(app_client.update_robot_part(machine_part_id, robot_part.name, robot_config))
+        viam_client.close()
 
         return jsonify({
             'success': True,
@@ -1015,6 +1050,8 @@ def update_sensor_pins(sensor_id):
     """Update sensor pins directly in Viam's robot configuration"""
     from models import Sensor, UserRobot
     from viam.robot.client import RobotClient
+    from viam.app.viam_client import ViamClient
+    from viam.rpc.dial import DialOptions
     import json
     
     account_id = session['user_id']
@@ -1034,34 +1071,44 @@ def update_sensor_pins(sensor_id):
             api_key_id=user_robot.get_viam_api_key_id()
         )
         robot = resolve_maybe_async(RobotClient.at_address(user_robot.robot.viam_robot_address, opts))
-        
-        # Get current robot config
-        config = resolve_maybe_async(robot.get_config())
-        
-        # Find and update the component's attributes with new pins
-        for component in config.components:
-            if component.name == sensor.name:
-                # Update component attributes with new pin information
-                if 'attributes' not in component.attributes:
-                    component.attributes = {}
-                
-                # Update pin fields in attributes
-                if 'gpio_pin' in data and data['gpio_pin'] is not None:
-                    component.attributes['gpio_pin'] = str(data['gpio_pin'])
-                if 'i2c_address' in data and data['i2c_address']:
-                    component.attributes['i2c_address'] = data['i2c_address']
-                if 'i2c_bus' in data and data['i2c_bus'] is not None:
-                    component.attributes['i2c_bus'] = str(data['i2c_bus'])
-                if 'spi_bus' in data and data['spi_bus'] is not None:
-                    component.attributes['spi_bus'] = str(data['spi_bus'])
-                if 'spi_device' in data and data['spi_device'] is not None:
-                    component.attributes['spi_device'] = str(data['spi_device'])
-                
-                break
-        
-        # Update the robot configuration in Viam
-        resolve_maybe_async(robot.reconfigure_config(config))
+        cloud_metadata = resolve_maybe_async(robot.get_cloud_metadata())
+        machine_part_id = cloud_metadata.machine_part_id
         resolve_maybe_async(robot.close())
+
+        dial_options = DialOptions.with_api_key(
+            user_robot.get_viam_api_key(),
+            user_robot.get_viam_api_key_id()
+        )
+        viam_client = resolve_maybe_async(ViamClient.create_from_dial_options(dial_options))
+        app_client = viam_client.app_client
+        robot_part = resolve_maybe_async(app_client.get_robot_part(machine_part_id))
+        robot_config = robot_part.robot_config or {}
+        components = robot_config.get('components', []) if isinstance(robot_config, dict) else []
+
+        target_component = None
+        for component in components:
+            if isinstance(component, dict) and component.get('name') == sensor.name:
+                target_component = component
+                break
+
+        if target_component:
+            current_attributes = dict(target_component.get('attributes', {}) or {})
+
+            if 'gpio_pin' in data and data['gpio_pin'] is not None:
+                current_attributes['gpio_pin'] = data['gpio_pin']
+            if 'i2c_address' in data and data['i2c_address']:
+                current_attributes['i2c_address'] = data['i2c_address']
+            if 'i2c_bus' in data and data['i2c_bus'] is not None:
+                current_attributes['i2c_bus'] = data['i2c_bus']
+            if 'spi_bus' in data and data['spi_bus'] is not None:
+                current_attributes['spi_bus'] = data['spi_bus']
+            if 'spi_device' in data and data['spi_device'] is not None:
+                current_attributes['spi_device'] = data['spi_device']
+
+            target_component['attributes'] = current_attributes
+            resolve_maybe_async(app_client.update_robot_part(machine_part_id, robot_part.name, robot_config))
+
+        viam_client.close()
         
         return jsonify({
             'success': True,
