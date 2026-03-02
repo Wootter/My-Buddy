@@ -79,8 +79,12 @@ async def _connect_robot_with_backoff(robot_address, api_key, api_key_id, attemp
     raise last_error
 
 
-async def _connect_robot_fast(robot_address, api_key, api_key_id, timeout_seconds=6.0):
-    """Fast-fail robot connect for live polling to prevent overlapping scheduler runs."""
+async def _connect_robot_fast(robot_address, api_key, api_key_id, timeout_seconds=3.0):
+    """Fast-fail robot connect for live polling to prevent overlapping scheduler runs.
+    
+    Uses a shorter timeout (3 seconds) for live polling to prevent scheduler backup.
+    If connection fails, the scheduler will just skip this run and try again in 10 seconds.
+    """
     return await asyncio.wait_for(
         _connect_robot_with_backoff(
             robot_address,
@@ -191,8 +195,42 @@ async def _fetch_viam_data_async(robot_id, api_key, api_key_id, robot_address):
     return readings_saved
 
 
+async def _fetch_single_sensor_live(viam_sensor_obj, sensor_config, timestamp):
+    """Fetch data from a single sensor concurrently."""
+    from viam.components.sensor import Sensor as ViamSensor
+    
+    try:
+        sensor_readings = await viam_sensor_obj.get_readings()
+        reading_key = sensor_config['reading_key']
+        
+        if reading_key in sensor_readings:
+            value = sensor_readings[reading_key]
+            
+            # Convert boolean to float for display
+            if isinstance(value, bool):
+                value = 1.0 if value else 0.0
+            else:
+                value = float(value)
+            
+            return (
+                sensor_config['sensor_name'],
+                {
+                    'value': value,
+                    'unit': sensor_config['unit'],
+                    'timestamp': timestamp.isoformat()
+                }
+            )
+    except Exception as e:
+        logger.debug(f"  [LIVE] {sensor_config['sensor_name']}: {type(e).__name__}")
+    
+    return None
+
+
 async def _fetch_viam_data_async_live(robot_id, api_key, api_key_id, robot_address):
-    """Async function to fetch LIVE data from Viam robot (without saving to database)."""
+    """Async function to fetch LIVE data from Viam robot (without saving to database).
+    
+    Fetches all sensors CONCURRENTLY to minimize total time.
+    """
     from viam.components.sensor import Sensor as ViamSensor
     
     logger.debug(f"[LIVE] Fetching sensor data from Viam...")
@@ -204,39 +242,27 @@ async def _fetch_viam_data_async_live(robot_id, api_key, api_key_id, robot_addre
     live_readings = {}
     
     try:
-        # Fetch data from each sensor
+        # Prepare sensor objects and concurrent fetch tasks
+        fetch_tasks = []
+        
         for sensor_config in VIAM_SENSORS:
             try:
-                try:
-                    viam_sensor = ViamSensor.from_robot(robot, sensor_config['viam_name'])
-                    sensor_readings = await viam_sensor.get_readings()
-                    
-                    reading_key = sensor_config['reading_key']
-                    if reading_key in sensor_readings:
-                        value = sensor_readings[reading_key]
-                        
-                        # Convert boolean to float for display
-                        if isinstance(value, bool):
-                            value = 1.0 if value else 0.0
-                        else:
-                            value = float(value)
-                        
-                        # Store in live_readings dict (NOT in database)
-                        live_readings[sensor_config['sensor_name']] = {
-                            'value': value,
-                            'unit': sensor_config['unit'],
-                            'timestamp': timestamp.isoformat()
-                        }
-                        
-                        logger.debug(f"  [LIVE] {sensor_config['sensor_name']}: {value} {sensor_config['unit']}")
-                    else:
-                        logger.debug(f"  [LIVE] {sensor_config['sensor_name']}: Key '{reading_key}' not found")
-                        
-                except Exception as sensor_error:
-                    logger.debug(f"  [LIVE] {sensor_config['sensor_name']}: {type(sensor_error).__name__}")
-                    
+                viam_sensor = ViamSensor.from_robot(robot, sensor_config['viam_name'])
+                # Create concurrent task for each sensor
+                task = _fetch_single_sensor_live(viam_sensor, sensor_config, timestamp)
+                fetch_tasks.append(task)
             except Exception as e:
-                logger.debug(f"  [LIVE] {sensor_config['sensor_name']}: {e}")
+                logger.debug(f"  [LIVE] {sensor_config['sensor_name']}: Failed to create sensor object")
+        
+        # Fetch all sensors concurrently
+        if fetch_tasks:
+            results = await asyncio.gather(*fetch_tasks, return_exceptions=True)
+            
+            for result in results:
+                if result and not isinstance(result, Exception):
+                    sensor_name, sensor_data = result
+                    live_readings[sensor_name] = sensor_data
+                    logger.debug(f"  [LIVE] {sensor_name}: {sensor_data['value']} {sensor_data['unit']}")
         
     finally:
         await robot.close()
@@ -248,10 +274,13 @@ def fetch_live_sensor_data():
     """
     Fetch LIVE sensor data from Viam for all connected user robots.
     Does NOT save to database - only returns for Socket.IO broadcast.
-    Called by scheduler every 5 seconds.
+    Called by scheduler every 10 seconds.
+    
+    OPTIMIZATION: Fetches all robots' sensors concurrently to minimize execution time.
     """
     try:
         import asyncio
+        from concurrent.futures import ThreadPoolExecutor
         
         # Get all robots that have been connected by users
         robots = Robot.query.all()
@@ -262,37 +291,55 @@ def fetch_live_sensor_data():
         
         all_live_readings = {}
         
-        # Fetch data for each robot
-        for robot in robots:
-            try:
-                # Get a user's credentials for this robot
-                user_robot = robot.user_robots[0] if robot.user_robots else None
-                
-                if not user_robot:
-                    logger.debug(f"[LIVE] Robot {robot.robot_name} has no users connected")
-                    continue
-                
-                # Run the async function
-                loop = asyncio.new_event_loop()
-                asyncio.set_event_loop(loop)
+        # Use a single event loop for all robot fetches
+        try:
+            loop = asyncio.get_event_loop()
+        except RuntimeError:
+            loop = asyncio.new_event_loop()
+            asyncio.set_event_loop(loop)
+        
+        async def fetch_all_robots():
+            """Fetch data from all robots concurrently."""
+            tasks = []
+            robot_list = []
+            
+            for robot in robots:
                 try:
-                    readings = loop.run_until_complete(_fetch_viam_data_async_live(
+                    user_robot = robot.user_robots[0] if robot.user_robots else None
+                    
+                    if not user_robot:
+                        logger.debug(f"[LIVE] Robot {robot.robot_name} has no users connected")
+                        continue
+                    
+                    robot_list.append(robot)
+                    task = _fetch_viam_data_async_live(
                         robot_id=robot.id,
                         api_key=user_robot.get_viam_api_key(),
                         api_key_id=user_robot.get_viam_api_key_id(),
                         robot_address=robot.viam_robot_address
-                    ))
-                    all_live_readings.update(readings)
-                finally:
-                    loop.close()
+                    )
+                    tasks.append(task)
+                    
+                except InvalidToken:
+                    logger.debug(f"[LIVE] Failed to decrypt credentials for robot: {robot.robot_name}")
+                except Exception as e:
+                    logger.debug(f"[LIVE] Error preparing fetch for {robot.robot_name}: {e}")
             
-            except InvalidToken:
-                logger.debug(f"[LIVE] Failed to decrypt credentials for robot: {robot.robot_name}")
+            # Fetch all robots concurrently
+            if tasks:
+                results = await asyncio.gather(*tasks, return_exceptions=True)
                 
-            except Exception as e:
-                logger.debug(f"[LIVE] Failed to fetch data for {robot.robot_name}: {e}")
+                for i, result in enumerate(results):
+                    if not isinstance(result, Exception):
+                        all_live_readings.update(result)
+                    else:
+                        logger.debug(f"[LIVE] Fetch failed for robot {i}: {result}")
+            
+            return all_live_readings
         
-        return all_live_readings
+        # Run the async function in the event loop
+        result = loop.run_until_complete(fetch_all_robots())
+        return result
         
     except ImportError:
         logger.error("[LIVE] viam-sdk not installed. Install with: pip install viam-sdk")

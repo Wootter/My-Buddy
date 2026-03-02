@@ -166,12 +166,14 @@ scheduler = BackgroundScheduler()
 scheduler.start()
 
 # Schedule LIVE data fetch every 10 seconds (does NOT save to database)
+# max_instances=1 prevents overlapping execution if fetch takes longer than interval
 scheduler.add_job(
     func=scheduled_viam_live_fetch,
     trigger=IntervalTrigger(seconds=10),
     id='viam_live_fetch',
     name='Fetch LIVE Viam sensor data (broadcast via Socket.IO)',
-    replace_existing=True
+    replace_existing=True,
+    max_instances=1
 )
 
 # Schedule database-saving fetch every hour at xx:00 (0 minutes past the hour)
