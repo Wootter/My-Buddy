@@ -1,161 +1,237 @@
 # -*- coding: utf-8 -*-
 """
 Viam Integration Module
-Handles fetching sensor data from Viam robot and storing in database.
+Queries cloud-stored sensor data via Viam Data Client API.
+Polls every 10 seconds for live display and hourly for historical data.
 """
 
 from datetime import datetime
 from extensions import db, socketio
 from models import SensorData, Sensor, Robot
-import asyncio
 import logging
-import traceback
-import nest_asyncio
 from cryptography.fernet import InvalidToken
-
-# Apply nest_asyncio to allow nested event loops
-nest_asyncio.apply()
 
 logger = logging.getLogger(__name__)
 
-# Sensor mapping: Viam component name → sensor name & reading key
-# Based on your DHT22 module: https://github.com/Wootter/viam-dht22-module
+# Sensor mapping: sensor database table → sensor name & unit
 VIAM_SENSORS = [
     {
-        'viam_name': 'DHT22',  # Updated to match your config
+        'database_name': 'DHT22',  # Table/sensor name in Viam
         'sensor_name': 'DHT22 Temperature',
-        'reading_key': 'temperature_celsius',
+        'column': 'temperature_celsius',
         'unit': '°C'
     },
     {
-        'viam_name': 'DHT22',  # Updated to match your config
+        'database_name': 'DHT22',
         'sensor_name': 'DHT22 Humidity',
-        'reading_key': 'humidity_percent',
+        'column': 'humidity_percent',
         'unit': '%'
     },
     {
-        'viam_name': 'VEML7700',
+        'database_name': 'VEML7700',
         'sensor_name': 'VEML7700 Light',
-        'reading_key': 'lux',
+        'column': 'lux',
         'unit': 'lux'
     },
     {
-        'viam_name': 'MH-SR602',
+        'database_name': 'MH-SR602',
         'sensor_name': 'MH-SR602 Motion',
-        'reading_key': 'motion_detected',
+        'column': 'motion_detected',
         'unit': 'bool'
     }
 ]
 
 
-async def _connect_robot_with_backoff(robot_address, api_key, api_key_id, attempts=3, base_delay=1.0, max_delay=5.0):
-    """Connect to a Viam robot with retry/backoff to handle transient failures."""
-    from viam.robot.client import RobotClient
-
-    opts = RobotClient.Options.with_api_key(
-        api_key=api_key,
-        api_key_id=api_key_id
-    )
-
-    last_error = None
-    for attempt in range(1, attempts + 1):
-        try:
-            return await RobotClient.at_address(robot_address, opts)
-        except Exception as exc:
-            last_error = exc
-            if attempt < attempts:
-                delay = min(max_delay, base_delay * (2 ** (attempt - 1)))
-                logger.warning(
-                    "Viam connect failed (%s/%s): %s. Retrying in %.1fs",
-                    attempt,
-                    attempts,
-                    exc,
-                    delay
-                )
-                await asyncio.sleep(delay)
-            else:
-                logger.error("Viam connect failed after %s attempts: %s", attempts, exc)
-
-    raise last_error
-
-
-async def _connect_robot_fast(robot_address, api_key, api_key_id, timeout_seconds=3.0):
-    """Fast-fail robot connect for live polling to prevent overlapping scheduler runs.
-    
-    Uses a shorter timeout (3 seconds) for live polling to prevent scheduler backup.
-    If connection fails, the scheduler will just skip this run and try again in 10 seconds.
-    """
-    return await asyncio.wait_for(
-        _connect_robot_with_backoff(
-            robot_address,
-            api_key,
-            api_key_id,
-            attempts=1,
-            base_delay=0.5,
-            max_delay=1.0,
-        ),
-        timeout=timeout_seconds,
-    )
-
-
-async def _fetch_viam_data_async(robot_id, api_key, api_key_id, robot_address):
-    """Async function to fetch data from Viam robot."""
-    from viam.components.sensor import Sensor as ViamSensor
-    
-    logger.info(f"[{datetime.now()}] Fetching sensor data from Viam...")
-    
-    # Connect to Viam robot
-    robot = await _connect_robot_with_backoff(robot_address, api_key, api_key_id)
-    
-    # List all available components for debugging
-    logger.info(f"Available components in robot:")
-    for resource in robot.resource_names:
-        logger.info(f"  - {resource}")
-    
-    timestamp = datetime.utcnow()
-    readings_saved = 0
-    
+def get_viam_data_client(api_key, api_key_id, org_id):
+    """Create a Viam Data Client for querying cloud data."""
     try:
-        # Fetch data from each sensor
+        from viam.app.data_client import DataClient
+        return DataClient(
+            api_key=api_key,
+            api_key_id=api_key_id,
+            org_id=org_id
+        )
+    except ImportError:
+        logger.error("viam-sdk not installed. Install with: pip install viam-sdk")
+        return None
+    except Exception as e:
+        logger.error(f"Failed to create Viam DataClient: {e}")
+        return None
+
+
+def fetch_live_sensor_data():
+    """Fetch latest sensor readings for Socket.IO broadcast (runs every 10 seconds)."""
+    try:
+        robots = Robot.query.all()
+        if not robots:
+            return {}
+        
+        all_live_readings = {}
+        
+        for robot in robots:
+            try:
+                user_robot = robot.user_robots[0] if robot.user_robots else None
+                if not user_robot:
+                    continue
+                
+                org_id = getattr(robot, 'viam_org_id', None)
+                if not org_id:
+                    continue
+                
+                try:
+                    api_key = user_robot.get_viam_api_key()
+                    api_key_id = user_robot.get_viam_api_key_id()
+                except InvalidToken:
+                    continue
+                
+                client = get_viam_data_client(api_key, api_key_id, org_id)
+                if not client:
+                    continue
+                
+                robot_readings = _query_robot_latest_data(client, robot.id, robot.robot_name)
+                if robot_readings:
+                    all_live_readings.update(robot_readings)
+                
+            except Exception as e:
+                logger.debug(f"[LIVE] Failed to fetch data for {robot.robot_name}: {e}")
+        
+        return all_live_readings
+        
+    except Exception as e:
+        logger.error(f"[LIVE] Failed to fetch Viam live data: {e}")
+        return {}
+
+
+def _query_robot_latest_data(data_client, robot_id, robot_name):
+    """Query latest sensor readings from Viam Data API."""
+    try:
+        robot_readings = {}
+        timestamp = datetime.utcnow()
+        
         for sensor_config in VIAM_SENSORS:
             try:
-                # Get or create sensor in database
+                sql_query = f"""
+                SELECT {sensor_config['column']} 
+                FROM {sensor_config['database_name']}
+                WHERE robot_id = '{robot_id}'
+                ORDER BY timestamp DESC
+                LIMIT 1
+                """
+                
+                results = data_client.tabular_data_by_sql(org_id=None, sql=sql_query)
+                if results:
+                    value = results[0].get(sensor_config['column'])
+                    
+                    if value is not None:
+                        if isinstance(value, bool):
+                            value = 1.0 if value else 0.0
+                        else:
+                            value = float(value)
+                        
+                        robot_readings[sensor_config['sensor_name']] = {
+                            'value': value,
+                            'unit': sensor_config['unit'],
+                            'timestamp': timestamp.isoformat()
+                        }
+            
+            except Exception as e:
+                pass
+        
+        return robot_readings
+
+
+def fetch_and_store_sensor_data():
+    """Fetch latest readings and store in local database (runs hourly)."""
+    try:
+        robots = Robot.query.all()
+        if not robots:
+            return False
+        
+        total_readings = 0
+        
+        for robot in robots:
+            try:
+                user_robot = robot.user_robots[0] if robot.user_robots else None
+                if not user_robot:
+                    continue
+                
+                org_id = getattr(robot, 'viam_org_id', None)
+                if not org_id:
+                    continue
+                
+                try:
+                    api_key = user_robot.get_viam_api_key()
+                    api_key_id = user_robot.get_viam_api_key_id()
+                except InvalidToken:
+                    logger.error(f"Failed to decrypt credentials for robot: {robot.robot_name}")
+                    continue
+                
+                logger.info(f"Fetching data for robot: {robot.robot_name}")
+                client = get_viam_data_client(api_key, api_key_id, org_id)
+                if not client:
+                    continue
+                
+                readings = _query_and_store_robot_data(client, robot)
+                total_readings += readings
+                
+            except Exception as e:
+                logger.error(f"Failed to fetch data for {robot.robot_name}: {e}")
+                db.session.rollback()
+        
+        if total_readings > 0:
+            logger.info(f"✓ Stored {total_readings} sensor readings")
+            logger.info("Emitting update_sensor_data event")
+            socketio.emit('update_sensor_data', {'message': 'New sensor data available'})
+        
+        return total_readings > 0
+        
+    except Exception as e:
+        logger.error(f"Failed to fetch Viam data: {e}")
+        db.session.rollback()
+        return False
+
+
+def _query_and_store_robot_data(data_client, robot):
+    """Query and store sensor readings to local database."""
+    try:
+        timestamp = datetime.utcnow()
+        readings_stored = 0
+        
+        for sensor_config in VIAM_SENSORS:
+            try:
                 sensor = Sensor.query.filter_by(
-                    robot_id=robot_id,
+                    robot_id=robot.id,
                     name=sensor_config['sensor_name']
                 ).first()
                 
                 if not sensor:
-                    # Create sensor if it doesn't exist
                     sensor = Sensor(
-                        robot_id=robot_id,
+                        robot_id=robot.id,
                         name=sensor_config['sensor_name'],
                         sensor_type='viam'
                     )
                     db.session.add(sensor)
                     db.session.flush()
                 
-                try:
-                    # Get the sensor component from Viam
-                    logger.info(f"  Attempting to get sensor component: {sensor_config['viam_name']}")
-                    viam_sensor = ViamSensor.from_robot(robot, sensor_config['viam_name'])
-                    logger.info(f"  Got sensor object: {type(viam_sensor)}")
+                sql_query = f"""
+                SELECT {sensor_config['column']} 
+                FROM {sensor_config['database_name']}
+                WHERE robot_id = '{robot.id}'
+                ORDER BY timestamp DESC
+                LIMIT 1
+                """
+                
+                results = data_client.tabular_data_by_sql(org_id=None, sql=sql_query)
+                
+                if results:
+                    value = results[0].get(sensor_config['column'])
                     
-                    sensor_readings = await viam_sensor.get_readings()
-                    logger.info(f"  DEBUG {sensor_config['sensor_name']}: Raw readings = {sensor_readings}")
-                    
-                    # Extract the specific reading
-                    reading_key = sensor_config['reading_key']
-                    if reading_key in sensor_readings:
-                        value = sensor_readings[reading_key]
-                        
-                        # Convert boolean to float for storage
+                    if value is not None:
                         if isinstance(value, bool):
                             value = 1.0 if value else 0.0
                         else:
                             value = float(value)
                         
-                        # Store in database
                         data_point = SensorData(
                             sensor_id=sensor.id,
                             timestamp=timestamp,
@@ -163,379 +239,21 @@ async def _fetch_viam_data_async(robot_id, api_key, api_key_id, robot_address):
                             unit=sensor_config['unit']
                         )
                         db.session.add(data_point)
-                        readings_saved += 1
-                        
+                        readings_stored += 1
                         logger.info(f"  ✓ {sensor_config['sensor_name']}: {value} {sensor_config['unit']}")
-                    else:
-                        logger.warning(f"  ⚠ {sensor_config['sensor_name']}: Key '{reading_key}' not found in {list(sensor_readings.keys())}")
-                        
-                except Exception as sensor_error:
-                    # Check if it's a component not found error
-                    if "not found" in str(sensor_error).lower() or "component" in str(sensor_error).lower():
-                        logger.error(f"  ✗ {sensor_config['sensor_name']}: Component '{sensor_config['viam_name']}' not found in robot")
-                        logger.error(f"    This usually means the module isn't loaded or component isn't configured")
-                    else:
-                        logger.error(f"  ✗ {sensor_config['sensor_name']}: Sensor error - {sensor_error}")
-                    raise sensor_error
-                    
-            except Exception as e:
-                logger.error(f"  ✗ {sensor_config['sensor_name']}: {type(e).__name__}: {e}")
-                # Don't log full traceback for expected component errors
-                if "not found" not in str(e).lower():
-                    import traceback
-                    logger.error(f"  ✗ {sensor_config['sensor_name']} Full traceback: {traceback.format_exc()}")
-        
-        # Commit all readings
-        db.session.commit()
-        logger.info(f"✓ Stored {readings_saved}/{len(VIAM_SENSORS)} sensor readings")
-        
-    finally:
-        await robot.close()
-    
-    return readings_saved
-
-
-async def _fetch_single_sensor_live(viam_sensor_obj, sensor_config, timestamp):
-    """Fetch data from a single sensor concurrently."""
-    from viam.components.sensor import Sensor as ViamSensor
-    
-    try:
-        sensor_readings = await viam_sensor_obj.get_readings()
-        reading_key = sensor_config['reading_key']
-        
-        if reading_key in sensor_readings:
-            value = sensor_readings[reading_key]
-            
-            # Convert boolean to float for display
-            if isinstance(value, bool):
-                value = 1.0 if value else 0.0
-            else:
-                value = float(value)
-            
-            return (
-                sensor_config['sensor_name'],
-                {
-                    'value': value,
-                    'unit': sensor_config['unit'],
-                    'timestamp': timestamp.isoformat()
-                }
-            )
-    except Exception as e:
-        logger.debug(f"  [LIVE] {sensor_config['sensor_name']}: {type(e).__name__}")
-    
-    return None
-
-
-async def _fetch_viam_data_async_live(robot_id, api_key, api_key_id, robot_address):
-    """Async function to fetch LIVE data from Viam robot (without saving to database).
-    
-    Fetches all sensors CONCURRENTLY to minimize total time.
-    """
-    from viam.components.sensor import Sensor as ViamSensor
-    
-    logger.debug(f"[LIVE] Fetching sensor data from Viam...")
-    
-    # Connect to Viam robot (fast-fail to keep scheduler responsive)
-    robot = await _connect_robot_fast(robot_address, api_key, api_key_id)
-    
-    timestamp = datetime.utcnow()
-    live_readings = {}
-    
-    try:
-        # Prepare sensor objects and concurrent fetch tasks
-        fetch_tasks = []
-        
-        for sensor_config in VIAM_SENSORS:
-            try:
-                viam_sensor = ViamSensor.from_robot(robot, sensor_config['viam_name'])
-                # Create concurrent task for each sensor
-                task = _fetch_single_sensor_live(viam_sensor, sensor_config, timestamp)
-                fetch_tasks.append(task)
-            except Exception as e:
-                logger.debug(f"  [LIVE] {sensor_config['sensor_name']}: Failed to create sensor object")
-        
-        # Fetch all sensors concurrently
-        if fetch_tasks:
-            results = await asyncio.gather(*fetch_tasks, return_exceptions=True)
-            
-            for result in results:
-                if result and not isinstance(result, Exception):
-                    sensor_name, sensor_data = result
-                    live_readings[sensor_name] = sensor_data
-                    logger.debug(f"  [LIVE] {sensor_name}: {sensor_data['value']} {sensor_data['unit']}")
-        
-    finally:
-        await robot.close()
-    
-    return live_readings
-
-
-def fetch_live_sensor_data():
-    """
-    Fetch LIVE sensor data from Viam for all connected user robots.
-    Does NOT save to database - only returns for Socket.IO broadcast.
-    Called by scheduler every 10 seconds.
-    
-    OPTIMIZATION: Fetches all robots' sensors concurrently to minimize execution time.
-    """
-    try:
-        import asyncio
-        from concurrent.futures import ThreadPoolExecutor
-        
-        # Get all robots that have been connected by users
-        robots = Robot.query.all()
-        
-        if not robots:
-            logger.debug("[LIVE] No robots connected yet.")
-            return {}
-        
-        all_live_readings = {}
-        
-        # Use a single event loop for all robot fetches
-        try:
-            loop = asyncio.get_event_loop()
-        except RuntimeError:
-            loop = asyncio.new_event_loop()
-            asyncio.set_event_loop(loop)
-        
-        async def fetch_all_robots():
-            """Fetch data from all robots concurrently."""
-            tasks = []
-            robot_list = []
-            
-            for robot in robots:
-                try:
-                    user_robot = robot.user_robots[0] if robot.user_robots else None
-                    
-                    if not user_robot:
-                        logger.debug(f"[LIVE] Robot {robot.robot_name} has no users connected")
-                        continue
-                    
-                    robot_list.append(robot)
-                    task = _fetch_viam_data_async_live(
-                        robot_id=robot.id,
-                        api_key=user_robot.get_viam_api_key(),
-                        api_key_id=user_robot.get_viam_api_key_id(),
-                        robot_address=robot.viam_robot_address
-                    )
-                    tasks.append(task)
-                    
-                except InvalidToken:
-                    logger.debug(f"[LIVE] Failed to decrypt credentials for robot: {robot.robot_name}")
-                except Exception as e:
-                    logger.debug(f"[LIVE] Error preparing fetch for {robot.robot_name}: {e}")
-            
-            # Fetch all robots concurrently
-            if tasks:
-                results = await asyncio.gather(*tasks, return_exceptions=True)
-                
-                for i, result in enumerate(results):
-                    if not isinstance(result, Exception):
-                        all_live_readings.update(result)
-                    else:
-                        logger.debug(f"[LIVE] Fetch failed for robot {i}: {result}")
-            
-            return all_live_readings
-        
-        # Run the async function in the event loop
-        result = loop.run_until_complete(fetch_all_robots())
-        return result
-        
-    except ImportError:
-        logger.error("[LIVE] viam-sdk not installed. Install with: pip install viam-sdk")
-        return {}
-    except Exception as e:
-        logger.error(f"[LIVE] Failed to fetch Viam live data: {e}")
-        return {}
-
-
-def fetch_and_store_sensor_data():
-    """
-    Fetch sensor data from Viam for all connected user robots.
-    Called by scheduler every hour at xx:00.
-    Data is SAVED to database for graphs.
-    """
-    try:
-        import asyncio
-        
-        # Get all robots that have been connected by users
-        robots = Robot.query.all()
-        
-        if not robots:
-            logger.info("No robots connected yet.")
-            return False
-        
-        total_readings = 0
-        
-        # Fetch data for each robot
-        for robot in robots:
-            try:
-                # Get a user's credentials for this robot to test connection
-                user_robot = robot.user_robots[0] if robot.user_robots else None
-                
-                if not user_robot:
-                    logger.warning(f"Robot {robot.robot_name} has no users connected")
-                    continue
-                
-                logger.info(f"Fetching data for robot: {robot.robot_name}")
-                
-                # Run the async function
-                loop = asyncio.new_event_loop()
-                asyncio.set_event_loop(loop)
-                try:
-                    readings = loop.run_until_complete(_fetch_viam_data_async(
-                        robot_id=robot.id,
-                        api_key=user_robot.get_viam_api_key(),
-                        api_key_id=user_robot.get_viam_api_key_id(),
-                        robot_address=robot.viam_robot_address
-                    ))
-                    total_readings += readings
-                finally:
-                    loop.close()
-            
-            except InvalidToken:
-                logger.error(f"Failed to decrypt credentials for robot: {robot.robot_name}")
-                logger.error("Encryption key mismatch. Please re-enter robot credentials in the web interface.")
                 
             except Exception as e:
-                logger.error(f"Failed to fetch data for {robot.robot_name}: {e}")
-                logger.error(traceback.format_exc())
-                db.session.rollback()
+                logger.error(f"  ✗ {sensor_config['sensor_name']}: {e}")
         
-        if total_readings > 0:
-            logger.info("Emitting update_sensor_data event")
-            socketio.emit('update_sensor_data', {'message': 'New sensor data available'})
+        if readings_stored > 0:
+            db.session.commit()
+            logger.info(f"✓ Stored {readings_stored}/{len(VIAM_SENSORS)} sensor readings for {robot.robot_name}")
         
-        return total_readings > 0
+        return readings_stored
         
-    except ImportError:
-        logger.error("viam-sdk not installed. Install with: pip install viam-sdk")
-        return False
     except Exception as e:
-        logger.error(f"Failed to fetch Viam data: {e}")
+        logger.error(f"Failed to query and store data: {e}")
         db.session.rollback()
-        return False
+        return 0
 
 
-async def _test_viam_connection_async(api_key, api_key_id, robot_address):
-    """Async test connection to Viam robot."""
-    from viam.robot.client import RobotClient
-    from viam.components.sensor import Sensor as ViamSensor
-    
-    print(f"Testing connection to {robot_address}...")
-    
-    opts = RobotClient.Options.with_api_key(
-        api_key=api_key,
-        api_key_id=api_key_id
-    )
-    robot = await RobotClient.at_address(robot_address, opts)
-    
-    try:
-        print(f"✓ Connected successfully!")
-        print(f"\nAvailable components:")
-        
-        # List all components
-        resources = robot.resource_names
-        for resource in resources:
-            print(f"  - {resource}")
-        
-        # Test DHT22 sensor if available
-        print(f"\nTesting sensors:")
-        try:
-            dht = ViamSensor.from_robot(robot, "dht22_sensor")
-            readings = await dht.get_readings()
-            print(f"✓ DHT22: {readings}")
-        except Exception as e:
-            print(f"⚠ DHT22: {e}")
-        
-        # Test VEML7700 if available
-        try:
-            veml = ViamSensor.from_robot(robot, "VEML7700")
-            readings = await veml.get_readings()
-            print(f"✓ VEML7700: {readings}")
-        except Exception as e:
-            print(f"⚠ VEML7700: {e}")
-        
-        # Test MH-SR602 if available
-        try:
-            motion = ViamSensor.from_robot(robot, "MH-SR602")
-            readings = await motion.get_readings()
-            print(f"✓ MH-SR602: {readings}")
-        except Exception as e:
-            print(f"⚠ MH-SR602: {e}")
-        
-    finally:
-        await robot.close()
-    
-    return True
-
-
-def test_viam_connection(api_key, api_key_id, robot_address):
-    """Test connection to Viam robot (call this manually to verify setup)"""
-    try:
-        import asyncio
-        
-        loop = asyncio.new_event_loop()
-        asyncio.set_event_loop(loop)
-        try:
-            loop.run_until_complete(_test_viam_connection_async(api_key, api_key_id, robot_address))
-            return True
-        finally:
-            loop.close()
-        
-    except Exception as e:
-        print(f"✗ Connection failed: {e}")
-        return False
-
-
-async def _get_robot_info_async(api_key, api_key_id, robot_address):
-    """Async function to get robot/device information."""
-    from viam.robot.client import RobotClient
-    
-    opts = RobotClient.Options.with_api_key(
-        api_key=api_key,
-        api_key_id=api_key_id
-    )
-    robot = await RobotClient.at_address(robot_address, opts)
-    
-    try:
-        # Get basic robot info
-        robot_info = {
-            'name': robot_address.split('.')[0],
-            'address': robot_address,
-            'status': 'Online',
-            'components': len(robot.resource_names),
-            'last_seen': datetime.utcnow().strftime('%Y-%m-%d %H:%M:%S UTC')
-        }
-        
-        return robot_info
-        
-    finally:
-        await robot.close()
-
-
-def get_robot_info(api_key, api_key_id, robot_address):
-    """
-    Get information about the connected Viam robot/Raspberry Pi.
-    Returns dict with name, address, status, etc.
-    """
-    try:
-        import asyncio
-        
-        loop = asyncio.new_event_loop()
-        asyncio.set_event_loop(loop)
-        try:
-            return loop.run_until_complete(_get_robot_info_async(api_key, api_key_id, robot_address))
-        finally:
-            loop.close()
-        
-    except Exception as e:
-        logger.error(f"Failed to get robot info: {e}")
-        robot_name = robot_address.split('.')[0] if robot_address else 'Unknown'
-        return {
-            'name': robot_name,
-            'address': robot_address,
-            'status': 'Offline',
-            'components': 0,
-            'last_seen': 'Never'
-        }
