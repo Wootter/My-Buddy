@@ -15,29 +15,10 @@ main > .container > h1 {
 
 .stats-grid {
   display: grid;
-  display: flex;
-  flex-wrap: wrap;
-  grid-template-columns: 1fr;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
   gap: 12px;
   margin: 12px 0;
-}
-
-@media (min-width: 480px) {
-  .stats-grid {
-    grid-template-columns: repeat(3, 1fr);
-  }
-}
-
-@media (min-width: 768px) {
-  .stats-grid {
-    grid-template-columns: repeat(5, 1fr);
-  }
-}
-
-@media (min-width: 1024px) {
-  .stats-grid {
-    grid-template-columns: repeat(6, 1fr);
-  }
+  width: 100%;
 }
 
 /* Balanced grid for different item counts */
@@ -195,6 +176,8 @@ main > .container > h1 {
   flex-direction: column;
   justify-content: center;
   align-items: center;
+  width: 100%;
+  min-width: 0;
   transition: border-color 0.3s ease-in-out, box-shadow 0.3s ease-in-out;
 }
 
